@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>$OSCAR Bubblemaps Communautaire</title>
+    <title>$OSCAR Custom Bubblemap</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
@@ -19,165 +22,239 @@
             font-family: sans-serif;
         }
 
-        .map-container {
+        .wallpaper-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #030508;
-        }
-
-        /* Bouton discret pour soumettre/enrichir */
-        .contrib-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 255, 204, 0.15);
-            border: 1px solid #00ffcc;
-            color: #00ffcc;
-            padding: 10px 16px;
-            border-radius: 20px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            backdrop-filter: blur(8px);
-            z-index: 100;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        /* Modal d'enrichissement communautaire */
-        .modal {
-            display: none;
-            position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(3, 5, 8, 0.85);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            background: #030508;
+            overflow: hidden;
         }
 
-        .modal-content {
+        /* Bulles dynamiques */
+        .bubble {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
             background: #0b0e14;
-            border: 1px solid #00ffcc;
-            padding: 25px;
-            border-radius: 15px;
-            width: 100%;
-            max-width: 400px;
-            color: #fff;
-            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
-        }
-
-        .modal-content h3 {
-            color: #00ffcc;
-            margin-bottom: 15px;
-            font-size: 16px;
-            letter-spacing: 1px;
-        }
-
-        .modal-content p {
-            font-size: 13px;
-            color: #a0aec0;
-            margin-bottom: 20px;
-            line-height: 1.4;
-        }
-
-        .modal-content input {
-            width: 100%;
-            padding: 12px;
-            background: #131823;
-            border: 1px solid rgba(0, 255, 204, 0.4);
-            border-radius: 8px;
-            color: #fff;
-            margin-bottom: 15px;
-            outline: none;
-            font-size: 13px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .modal-actions button {
-            flex: 1;
-            padding: 10px;
-            border-radius: 8px;
+            will-change: transform;
             cursor: pointer;
+        }
+
+        .bubble img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        /* Connexions SVG */
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .link-line {
+            stroke: rgba(0, 255, 204, 0.3);
+            stroke-width: 2;
+        }
+
+        /* Bouton pour ajouter une image */
+        .add-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 255, 204, 0.15);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 12px;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 11px;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
         }
 
-        .btn-submit {
-            background: #00ffcc;
-            color: #030508;
-            border: none;
-        }
-
-        .btn-close {
-            background: transparent;
-            color: #a0aec0;
-            border: 1px solid rgba(255,255,255,0.2);
+        #fileInput {
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <div class="map-container">
-        <!-- Intégration officielle Bubblemaps -->
-        <iframe src="https://app.bubblemaps.io/" allowfullscreen allow="clipboard-write"></iframe>
+    <div class="wallpaper-container" id="container">
+        <svg id="svgContainer"></svg>
     </div>
 
-    <!-- Bouton d'enrichissement -->
-    <button class="contrib-btn" onclick="openModal()">+ Enrichir</button>
-
-    <!-- Popup / Modal -->
-    <div class="modal" id="contribModal">
-        <div class="modal-content">
-            <h3>Contribuer à la map $OSCAR</h3>
-            <p>Pour lier de nouvelles images ou identifier des portefeuilles sur la Bubblemaps officielle, soumets tes informations ou passe par l'Intel Desk.</p>
-            <input type="text" id="walletInput" placeholder="Adresse du wallet ou lien image...">
-            <div class="modal-actions">
-                <button class="btn-close" onclick="closeModal()">Fermer</button>
-                <button class="btn-submit" onclick="submitData()">Envoyer</button>
-            </div>
-        </div>
-    </div>
+    <!-- Bouton flottant pour ajouter une image -->
+    <button class="add-btn" onclick="document.getElementById('fileInput').click()">+ Ajouter une image</button>
+    <input type="file" id="fileInput" accept="image/*" onchange="handleAddImage(event)">
 
     <script>
-        function openModal() {
-            document.getElementById('contribModal').style.display = 'flex';
+        const container = document.getElementById('container');
+        const svgContainer = document.getElementById('svgContainer');
+        
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+        });
+
+        let bubbles = [];
+        let lines = [];
+
+        // Exemples d'images de base (tu peux remplacer ou laisser vide)
+        const initialImages = [
+            "https://picsum.photos/200?random=1",
+            "https://picsum.photos/200?random=2"
+        ];
+
+        function createBubble(imgSrc) {
+            const bubbleEl = document.createElement('div');
+            bubbleEl.className = 'bubble';
+            
+            const imgEl = document.createElement('img');
+            imgEl.src = imgSrc;
+            bubbleEl.appendChild(imgEl);
+            container.appendChild(bubbleEl);
+
+            const radius = 40;
+            const bubbleObj = {
+                el: bubbleEl,
+                x: width / 2 + (Math.random() - 0.5) * 200,
+                y: height / 2 + (Math.random() - 0.5) * 200,
+                vx: (Math.random() - 0.5) * 0.6,
+                vy: (Math.random() - 0.5) * 0.6,
+                radius: radius
+            };
+
+            bubbles.push(bubbleObj);
+            rebuildLines();
         }
 
-        function closeModal() {
-            document.getElementById('contribModal').style.display = 'none';
-        }
+        function rebuildLines() {
+            // Nettoyer les anciennes lignes SVG
+            svgContainer.innerHTML = '';
+            lines = [];
 
-        function submitData() {
-            const val = document.getElementById('walletInput').value;
-            if(val) {
-                alert("Merci ! Votre contribution a bien été prise en compte pour la mise à jour de la carte.");
-                document.getElementById('walletInput').value = '';
-                closeModal();
-            } else {
-                alert("Veuillez entrer une information valide.");
+            for (let i = 0; i < bubbles.length; i++) {
+                for (let j = i + 1; j < bubbles.length; j++) {
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("class", "link-line");
+                    svgContainer.appendChild(line);
+                    lines.push({ line: line, a: bubbles[i], b: bubbles[j] });
+                }
             }
         }
+
+        // Charger les images initiales
+        initialImages.forEach(src => createBubble(src));
+
+        // Fonction pour ajouter une image depuis le téléphone/PC
+        function handleAddImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    createBubble(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        let touchX = null, touchY = null, isTouching = false;
+
+        // Boucle d'animation fluide
+        function animate() {
+            bubbles.forEach((b1, i) => {
+                b1.vx *= 0.96; // Friction
+                b1.vy *= 0.96;
+
+                b1.x += b1.vx;
+                b1.y += b1.vy;
+
+                // Rebond sur les bords
+                if (b1.x < b1.radius || b1.x > width - b1.radius) { b1.vx *= -1; b1.x = Math.max(b1.radius, Math.min(width - b1.radius, b1.x)); }
+                if (b1.y < b1.radius || b1.y > height - b1.radius - 100) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 100, b1.y)); }
+
+                // Répulsion entre bulles
+                for (let j = i + 1; j < bubbles.length; j++) {
+                    let b2 = bubbles[j];
+                    let dx = b2.x - b1.x;
+                    let dy = b2.y - b1.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    let minDist = b1.radius + b2.radius + 20;
+
+                    if (dist < minDist && dist > 0) {
+                        let force = (minDist - dist) / dist * 0.04;
+                        b1.vx -= dx * force;
+                        b1.vy -= dy * force;
+                        b2.vx += dx * force;
+                        b2.vy += dy * force;
+                    }
+                }
+
+                // Interaction avec le doigt
+                if (isTouching && touchX !== null) {
+                    let tdx = touchX - b1.x;
+                    let tdy = touchY - b1.y;
+                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    if (tdist < 200) {
+                        b1.vx += tdx * 0.01;
+                        b1.vy += tdy * 0.01;
+                    }
+                }
+
+                b1.el.style.transform = `translate3d(${b1.x - b1.radius}px, ${b1.y - b1.radius}px, 0)`;
+            });
+
+            // Mise à jour des liens SVG
+            lines.forEach(l => {
+                l.line.setAttribute("x1", l.a.x);
+                l.line.setAttribute("y1", l.a.y);
+                l.line.setAttribute("x2", l.b.x);
+                l.line.setAttribute("y2", l.b.y);
+            });
+
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+
+        // Gestion tactile globale
+        window.addEventListener('touchstart', (e) => {
+            isTouching = true;
+            touchX = e.touches[0].clientX;
+            touchY = e.touches[0].clientY;
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isTouching) {
+                touchX = e.touches[0] ? e.touches[0].clientX : touchX;
+                touchY = e.touches[0] ? e.touches[0].clientY : touchY;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', () => { isTouching = false; touchX = null; touchY = null; });
+
+        window.addEventListener('pointerdown', (e) => { isTouching = true; touchX = e.clientX; touchY = e.clientY; });
+        window.addEventListener('pointermove', (e) => { if(isTouching) { touchX = e.clientX; touchY = e.clientY; } });
+        window.addEventListener('pointerup', () => { isTouching = false; touchX = null; touchY = null; });
     </script>
 </body>
 </html>
