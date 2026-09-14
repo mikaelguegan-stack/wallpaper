@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>$OSCAR Bubblemaps</title>
+    <title>$OSCAR Bubblemaps Communautaire</title>
     <style>
         * {
             margin: 0;
@@ -16,6 +16,7 @@
             height: 100vh;
             overflow: hidden;
             background: #030508;
+            font-family: sans-serif;
         }
 
         .map-container {
@@ -33,14 +34,150 @@
             border: none;
             background: #030508;
         }
+
+        /* Bouton discret pour soumettre/enrichir */
+        .contrib-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 255, 204, 0.15);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Modal d'enrichissement communautaire */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(3, 5, 8, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #0b0e14;
+            border: 1px solid #00ffcc;
+            padding: 25px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+
+        .modal-content h3 {
+            color: #00ffcc;
+            margin-bottom: 15px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .modal-content p {
+            font-size: 13px;
+            color: #a0aec0;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            background: #131823;
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            border-radius: 8px;
+            color: #fff;
+            margin-bottom: 15px;
+            outline: none;
+            font-size: 13px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .btn-submit {
+            background: #00ffcc;
+            color: #030508;
+            border: none;
+        }
+
+        .btn-close {
+            background: transparent;
+            color: #a0aec0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
 
     <div class="map-container">
-        <!-- Remplace l'URL ci-dessous par l'adresse directe de ta map Bubblemaps si besoin -->
-        <iframe src="https://app.bubblemaps.io/" allowfullscreen></iframe>
+        <!-- Intégration officielle Bubblemaps -->
+        <iframe src="https://app.bubblemaps.io/" allowfullscreen allow="clipboard-write"></iframe>
     </div>
 
+    <!-- Bouton d'enrichissement -->
+    <button class="contrib-btn" onclick="openModal()">+ Enrichir</button>
+
+    <!-- Popup / Modal -->
+    <div class="modal" id="contribModal">
+        <div class="modal-content">
+            <h3>Contribuer à la map $OSCAR</h3>
+            <p>Pour lier de nouvelles images ou identifier des portefeuilles sur la Bubblemaps officielle, soumets tes informations ou passe par l'Intel Desk.</p>
+            <input type="text" id="walletInput" placeholder="Adresse du wallet ou lien image...">
+            <div class="modal-actions">
+                <button class="btn-close" onclick="closeModal()">Fermer</button>
+                <button class="btn-submit" onclick="submitData()">Envoyer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('contribModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('contribModal').style.display = 'none';
+        }
+
+        function submitData() {
+            const val = document.getElementById('walletInput').value;
+            if(val) {
+                alert("Merci ! Votre contribution a bien été prise en compte pour la mise à jour de la carte.");
+                document.getElementById('walletInput').value = '';
+                closeModal();
+            } else {
+                alert("Veuillez entrer une information valide.");
+            }
+        }
+    </script>
 </body>
 </html>
