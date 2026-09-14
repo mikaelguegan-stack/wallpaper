@@ -22,21 +22,57 @@
             font-family: sans-serif;
         }
 
-        canvas {
-            display: block;
+        .bubblemap-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Les bulles d'images */
+        .bubble {
+            position: absolute;
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+            background: #111;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+            cursor: pointer;
+        }
+
+        .bubble img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Réseau de lignes SVG dynamique */
+        svg {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
 
+        .link-line {
+            stroke: rgba(0, 255, 204, 0.35);
+            stroke-width: 2;
+            stroke-dasharray: 4 2; /* Effet de données/flux réseau */
+        }
+
+        /* HUD minimaliste $OSCAR */
         .hud {
             position: absolute;
             bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(18, 24, 38, 0.75);
+            background: rgba(18, 24, 38, 0.85);
             border: 1px solid rgba(0, 255, 204, 0.4);
             padding: 8px 18px;
             border-radius: 20px;
@@ -53,146 +89,164 @@
 </head>
 <body>
 
-    <div class="hud">$OSCAR // Bubblemap Active</div>
-    <canvas id="bubbleCanvas"></canvas>
+    <div class="bubblemap-container" id="container">
+        <!-- SVG dynamique pour le réseau -->
+        <svg id="svgContainer"></svg>
+    </div>
+
+    <div class="hud">$OSCAR // Bubblemap Cluster</div>
 
     <script>
         // ==========================================
-        // AJOUTE TES IMAGES ICI (Modifiable par n'importe qui)
+        // LISTE DES IMAGES : N'importe qui peut en rajouter 
+        // simplement en ajoutant "nom.png" ici et dans le dépôt GitHub !
         // ==========================================
         const imagesList = [
             "image1.png",
             "image2.png",
             "image3.png"
+            // Ex: "image4.png", "image5.png", etc.
         ];
 
-        const canvas = document.getElementById('bubbleCanvas');
-        const ctx = canvas.getContext('2d');
-
+        const container = document.getElementById('container');
+        const svgContainer = document.getElementById('svgContainer');
+        
         let width = window.innerWidth;
         let height = window.innerHeight;
 
-        function resize() {
+        window.addEventListener('resize', () => {
             width = window.innerWidth;
             height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        let bubbles = [];
-
-        // Chargement des images et création des bulles
-        imagesList.forEach((src, index) => {
-            const img = new Image();
-            img.src = src;
-            img.onload = () => {
-                bubbles.push({
-                    x: Math.random() * (width - 160) + 80,
-                    y: Math.random() * (height - 260) + 130,
-                    vx: (Math.random() - 0.5) * 1.2,
-                    vy: (Math.random() - 0.5) * 1.2,
-                    radius: 50, // Rayon de la bulle image
-                    img: img,
-                    id: index
-                });
-            };
         });
 
-        let tilt = { x: 0, y: 0 };
-        let touchPos = { x: null, y: null, active: false };
+        let bubbles = [];
+        let lines = [];
 
-        function animate() {
-            ctx.fillStyle = '#05080f';
-            ctx.fillRect(0, 0, width, height);
+        // Génération automatique des éléments DOM pour chaque image
+        imagesList.forEach((src, index) => {
+            // Création de la bulle HTML
+            const bubbleEl = document.createElement('div');
+            bubbleEl.className = 'bubble';
+            
+            const imgEl = document.createElement('img');
+            imgEl.src = src;
+            bubbleEl.appendChild(imgEl);
+            container.appendChild(bubbleEl);
 
-            // 1. Dessiner les lignes de connexion (Style Bubblemap réseau)
-            for (let i = 0; i < bubbles.length; i++) {
-                for (let j = i + 1; j < bubbles.length; j++) {
-                    let dx = bubbles[i].x - bubbles[j].x;
-                    let dy = bubbles[i].y - bubbles[j].y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
+            // Position de départ aléatoire mais espacée
+            bubbles.push({
+                el: bubbleEl,
+                x: Math.random() * (width - 150) + 75,
+                y: Math.random() * (height - 250) + 100,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
+                radius: 37.5 // Moitié de 75px
+            });
+        });
 
-                    ctx.beginPath();
-                    ctx.moveTo(bubbles[i].x, bubbles[i].y);
-                    ctx.lineTo(bubbles[j].x, bubbles[j].y);
-                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
+        // Génération des lignes de liaison du graphe (Style Bubblemap)
+        for (let i = 0; i < bubbles.length; i++) {
+            for (let j = i + 1; j < bubbles.length; j++) {
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("class", "link-line");
+                svgContainer.appendChild(line);
+                lines.push({ line: line, a: bubbles[i], b: bubbles[j] });
             }
+        }
 
-            // 2. Mettre à jour la physique et dessiner les bulles
-            bubbles.forEach(b => {
-                b.x += b.vx + (tilt.x * 0.15);
-                b.y += b.vy + (tilt.y * 0.15);
+        let tiltX = 0, tiltY = 0;
+        let touchX = null, touchY = null, isTouching = false;
 
-                // Rebond propre sur les bords de l'écran
-                if (b.x - b.radius < 0) { b.x = b.radius; b.vx *= -1; }
-                if (b.x + b.radius > width) { b.x = width - b.radius; b.vx *= -1; }
-                if (b.y - b.radius < 0) { b.y = b.radius; b.vy *= -1; }
-                if (b.y + b.radius > height) { b.y = height - b.radius; b.vy *= -1; }
+        // Boucle de physique Bubblemap ultra-fluide (60 FPS)
+        function animateBubblemap() {
+            // 1. Mise à jour de la position et répulsion entre bulles (pour qu'elles ne se superforcent pas)
+            for (let i = 0; i < bubbles.length; i++) {
+                let b1 = bubbles[i];
 
-                // Interaction tactile (effet magnétique quand on touche l'écran)
-                if (touchPos.active && touchPos.x !== null) {
-                    let tdx = touchPos.x - b.x;
-                    let tdy = touchPos.y - b.y;
-                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    if (tdist < 150) {
-                        b.x += tdx * 0.04;
-                        b.y += tdy * 0.04;
+                // Ajout de l'influence du gyroscope
+                b1.vx += tiltX * 0.03;
+                b1.vy += tiltY * 0.03;
+
+                // Friction pour stabiliser la vitesse
+                b1.vx *= 0.98;
+                b1.vy *= 0.98;
+
+                b1.x += b1.vx;
+                b1.y += b1.vy;
+
+                // Rebond sur les bords de l'écran
+                if (b1.x < b1.radius || b1.x > width - b1.radius) { b1.vx *= -1; b1.x = Math.max(b1.radius, Math.min(width - b1.radius, b1.x)); }
+                if (b1.y < b1.radius || b1.y > height - b1.radius - 50) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 50, b1.y)); }
+
+                // Répulsion entre bulles proches (Effet Bubblemap organique)
+                for (let j = i + 1; j < bubbles.length; j++) {
+                    let b2 = bubbles[j];
+                    let dx = b2.x - b1.x;
+                    let dy = b2.y - b1.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    let minDist = b1.radius + b2.radius + 35; // Espace entre les bulles
+
+                    if (dist < minDist && dist > 0) {
+                        let force = (minDist - dist) / dist * 0.08;
+                        b1.vx -= dx * force;
+                        b1.vy -= dy * force;
+                        b2.vx += dx * force;
+                        b2.vy += dy * force;
                     }
                 }
 
-                // Affichage de l'image découpée en cercle
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.closePath();
-                ctx.clip();
-                ctx.drawImage(b.img, b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
-                ctx.restore();
+                // Interaction tactile (attire ou repousse légèrement vers le doigt)
+                if (isTouching && touchX !== null) {
+                    let tdx = touchX - b1.x;
+                    let tdy = touchY - b1.y;
+                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    if (tdist < 180) {
+                        b1.vx += tdx * 0.002;
+                        b1.vy += tdy * 0.002;
+                    }
+                }
 
-                // Contour néon type crypto / $OSCAR
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = '#00ffcc';
-                ctx.lineWidth = 3;
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = '#00ffcc';
-                ctx.stroke();
-                ctx.shadowBlur = 0; // Reset ombre pour performances
+                // Application CSS GPU
+                b1.el.style.transform = `translate3d(${b1.x - b1.radius}px, ${b1.y - b1.radius}px, 0)`;
+            }
+
+            // 2. Mise à jour des lignes de connexion du réseau
+            lines.forEach(l => {
+                l.line.setAttribute("x1", l.a.x);
+                l.line.setAttribute("y1", l.a.y);
+                l.line.setAttribute("x2", l.b.x);
+                l.line.setAttribute("y2", l.b.y);
             });
 
-            requestAnimationFrame(animate);
+            requestAnimationFrame(animateBubblemap);
         }
-        animate();
+        requestAnimationFrame(animateBubblemap);
 
-        // Gestion tactile ultra réactive
+        // Gestion tactile
         window.addEventListener('pointerdown', (e) => {
-            touchPos.x = e.clientX;
-            touchPos.y = e.clientY;
-            touchPos.active = true;
+            isTouching = true;
+            touchX = e.clientX;
+            touchY = e.clientY;
         });
 
         window.addEventListener('pointermove', (e) => {
-            if (touchPos.active) {
-                touchPos.x = e.clientX;
-                touchPos.y = e.clientY;
+            if (isTouching) {
+                touchX = e.clientX;
+                touchY = e.clientY;
             }
         });
 
         window.addEventListener('pointerup', () => {
-            touchPos.active = false;
-            touchPos.x = null;
+            isTouching = false;
+            touchX = null;
+            touchY = null;
         });
 
-        // Gyroscope 3D
+        // Gyroscope
         window.addEventListener('deviceorientation', (e) => {
             if (e.gamma !== null && e.beta !== null) {
-                tilt.x = Math.max(-8, Math.min(8, e.gamma / 3));
-                tilt.y = Math.max(-8, Math.min(8, e.beta / 3));
+                tiltX = Math.max(-5, Math.min(5, e.gamma / 3));
+                tiltY = Math.max(-5, Math.min(5, e.beta / 3));
             }
         });
     </script>
