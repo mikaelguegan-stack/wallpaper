@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Live Wallpaper</title>
+    <title>$OSCAR Live Wallpaper</title>
     <style>
         * {
             margin: 0;
@@ -11,68 +11,219 @@
             box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent; /* Supprime le flash gris au clic sur Android */
+            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: #000;
+            background-color: #030508;
+            font-family: 'Courier New', monospace;
         }
 
-        .wallpaper-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
         }
 
-        .wallpaper-img {
+        /* Interface HUD Cyberpunk / Crypto minimaliste */
+        .hud-overlay {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* S'adapte parfaitement à l'écran sans déformer */
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            will-change: opacity, transform; /* Active l'accélération matérielle GPU */
-            transform: translate3d(0, 0, 0); /* Force le rendu matériel */
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
         }
 
-        .wallpaper-img.active {
-            opacity: 1;
+        .hud-badge {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            padding: 8px 14px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+        }
+
+        .hud-title {
+            font-size: 10px;
+            color: #00ffcc;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .hud-value {
+            font-size: 13px;
+            color: #ffffff;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        .matrix-ticker {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: rgba(0, 255, 204, 0.6);
+            letter-spacing: 3px;
+            text-align: center;
+            pointer-events: none;
+            text-transform: uppercase;
+            animation: pulseText 2s infinite alternate;
+        }
+
+        @keyframes pulseText {
+            0% { opacity: 0.4; text-shadow: 0 0 5px rgba(0,255,204,0); }
+            100% { opacity: 1; text-shadow: 0 0 15px rgba(0,255,204,0.8); }
         }
     </style>
 </head>
 <body>
 
-    <div class="wallpaper-container" id="wallpaperContainer">
-        <!-- Tes images ici -->
-        <img src="image1.jpg" class="wallpaper-img active" alt="Wallpaper 1">
-        <img src="image2.jpg" class="wallpaper-img" alt="Wallpaper 2">
-        <img src="image3.jpg" class="wallpaper-img" alt="Wallpaper 3">
+    <div class="hud-overlay">
+        <div class="hud-badge">
+            <div class="hud-title">Asset</div>
+            <div class="hud-value">$OSCAR / ERC-20</div>
+        </div>
+        <div class="hud-badge" style="text-align: right;">
+            <div class="hud-title">Node Link</div>
+            <div class="hud-value">@Ryu // Active</div>
+        </div>
     </div>
 
-    <script>
-        const images = document.querySelectorAll('.wallpaper-img');
-        let currentIndex = 0;
-        const container = document.getElementById('wallpaperContainer');
+    <div class="matrix-ticker" id="tickerText">TOUCH SCREEN TO PULSE CORE</div>
 
-        // Changement d'image instantané au premier contact tactile
-        container.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); // Empêche les délais de double-tap/zoom du navigateur
-            
-            // Masque l'image actuelle
-            images[currentIndex].classList.remove('active');
-            
-            // Passe à la suivante
-            currentIndex = (currentIndex + 1) % images.length;
-            
-            // Affiche la nouvelle image de manière fluide
-            images[currentIndex].classList.add('active');
-        }, { passive: false });
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const ticker = document.getElementById('tickerText');
+
+        let width, height;
+        let particles = [];
+        let mouse = { x: null, y: null, active: false };
+        let tilt = { x: 0, y: 0 };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Création d'un réseau de nœuds / particules inspiré de la blockchain
+        class Node {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.radius = Math.random() * 2 + 1;
+                this.baseColor = Math.random() > 0.3 ? '#00ffcc' : '#ff0055';
+            }
+            update() {
+                this.x += this.vx + (tilt.x * 0.2);
+                this.y += this.vy + (tilt.y * 0.2);
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+
+                // Interaction tactile : attire ou repousse les particules
+                if (mouse.active) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        this.x -= dx * 0.05;
+                        this.y -= dy * 0.05;
+                    }
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.baseColor;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.baseColor;
+                ctx.fill();
+            }
+        }
+
+        // Initialisation du réseau (50 nœuds connectés)
+        let nodesArray = [];
+        for (let i = 0; i < 60; i++) {
+            nodesArray.push(new Node());
+        }
+
+        // Boucle de rendu fluide à 60 FPS via requestAnimationFrame
+        function animate() {
+            ctx.fillStyle = 'rgba(3, 5, 8, 0.2)'; // Effet de traînée visuelle (motion blur)
+            ctx.fillRect(0, 0, width, height);
+
+            // Dessiner les connexions entre nœuds proches (Effet Toile d'araignée / Blockchain)
+            for (let i = 0; i < nodesArray.length; i++) {
+                nodesArray[i].update();
+                nodesArray[i].draw();
+
+                for (let j = i + 1; j < nodesArray.length; j++) {
+                    let dx = nodesArray[i].x - nodesArray[j].x;
+                    let dy = nodesArray[i].y - nodesArray[j].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(nodesArray[i].x, nodesArray[i].y);
+                        ctx.lineTo(nodesArray[j].x, nodesArray[j].y);
+                        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - dist / 120})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.shadowBlur = 0;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Gestion du tactile multi-réaction
+        window.addEventListener('pointerdown', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+
+            // Effet visuel au clic : génère une onde de choc de particules
+            ticker.innerText = ">> OSCAR & RYU SYNC ACTIVE <<";
+            setTimeout(() => { ticker.innerText = "TOUCH SCREEN TO PULSE CORE"; }, 2000);
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (mouse.active) {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            mouse.active = false;
+        });
+
+        // Capteurs gyroscopiques (Inclinaison du téléphone)
+        window.addEventListener('deviceorientation', (e) => {
+            if (e.gamma !== null && e.beta !== null) {
+                tilt.x = Math.max(-5, Math.min(5, e.gamma / 3));
+                tilt.y = Math.max(-5, Math.min(5, e.beta / 3));
+            }
+        });
     </script>
 </body>
 </html>
