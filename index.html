@@ -24,6 +24,9 @@
 
         canvas {
             display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
         }
@@ -33,9 +36,9 @@
             bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(18, 24, 38, 0.7);
+            background: rgba(18, 24, 38, 0.75);
             border: 1px solid rgba(0, 255, 204, 0.4);
-            padding: 8px 16px;
+            padding: 8px 18px;
             border-radius: 20px;
             backdrop-filter: blur(10px);
             color: #00ffcc;
@@ -50,12 +53,12 @@
 </head>
 <body>
 
-    <div class="hud">$OSCAR // Bubblemap Node</div>
+    <div class="hud">$OSCAR // Bubblemap Active</div>
     <canvas id="bubbleCanvas"></canvas>
 
     <script>
         // ==========================================
-        // VOS IMAGES EN .PNG (Modifiable par n'importe qui)
+        // AJOUTE TES IMAGES ICI (Modifiable par n'importe qui)
         // ==========================================
         const imagesList = [
             "image1.png",
@@ -66,28 +69,31 @@
         const canvas = document.getElementById('bubbleCanvas');
         const ctx = canvas.getContext('2d');
 
-        let width, height;
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
         function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
         }
         window.addEventListener('resize', resize);
         resize();
 
         let bubbles = [];
-        let loadedImages = [];
 
+        // Chargement des images et création des bulles
         imagesList.forEach((src, index) => {
             const img = new Image();
             img.src = src;
             img.onload = () => {
-                loadedImages.push(img);
                 bubbles.push({
-                    x: Math.random() * (width - 150) + 75,
-                    y: Math.random() * (height - 250) + 100,
-                    vx: (Math.random() - 0.5) * 0.8,
-                    vy: (Math.random() - 0.5) * 0.8,
-                    radius: 45,
+                    x: Math.random() * (width - 160) + 80,
+                    y: Math.random() * (height - 260) + 130,
+                    vx: (Math.random() - 0.5) * 1.2,
+                    vy: (Math.random() - 0.5) * 1.2,
+                    radius: 50, // Rayon de la bulle image
                     img: img,
                     id: index
                 });
@@ -101,6 +107,7 @@
             ctx.fillStyle = '#05080f';
             ctx.fillRect(0, 0, width, height);
 
+            // 1. Dessiner les lignes de connexion (Style Bubblemap réseau)
             for (let i = 0; i < bubbles.length; i++) {
                 for (let j = i + 1; j < bubbles.length; j++) {
                     let dx = bubbles[i].x - bubbles[j].x;
@@ -110,29 +117,35 @@
                     ctx.beginPath();
                     ctx.moveTo(bubbles[i].x, bubbles[i].y);
                     ctx.lineTo(bubbles[j].x, bubbles[j].y);
-                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.2)';
-                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
+                    ctx.lineWidth = 2;
                     ctx.stroke();
                 }
             }
 
+            // 2. Mettre à jour la physique et dessiner les bulles
             bubbles.forEach(b => {
-                b.x += b.vx + (tilt.x * 0.1);
-                b.y += b.vy + (tilt.y * 0.1);
+                b.x += b.vx + (tilt.x * 0.15);
+                b.y += b.vy + (tilt.y * 0.15);
 
-                if (b.x - b.radius < 0 || b.x + b.radius > width) b.vx *= -1;
-                if (b.y - b.radius < 0 || b.y + b.radius > height) b.vy *= -1;
+                // Rebond propre sur les bords de l'écran
+                if (b.x - b.radius < 0) { b.x = b.radius; b.vx *= -1; }
+                if (b.x + b.radius > width) { b.x = width - b.radius; b.vx *= -1; }
+                if (b.y - b.radius < 0) { b.y = b.radius; b.vy *= -1; }
+                if (b.y + b.radius > height) { b.y = height - b.radius; b.vy *= -1; }
 
-                if (touchPos.active) {
+                // Interaction tactile (effet magnétique quand on touche l'écran)
+                if (touchPos.active && touchPos.x !== null) {
                     let tdx = touchPos.x - b.x;
                     let tdy = touchPos.y - b.y;
                     let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    if (tdist < 120) {
-                        b.x += tdx * 0.03;
-                        b.y += tdy * 0.03;
+                    if (tdist < 150) {
+                        b.x += tdx * 0.04;
+                        b.y += tdy * 0.04;
                     }
                 }
 
+                // Affichage de l'image découpée en cercle
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
@@ -141,20 +154,22 @@
                 ctx.drawImage(b.img, b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
                 ctx.restore();
 
+                // Contour néon type crypto / $OSCAR
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
                 ctx.strokeStyle = '#00ffcc';
                 ctx.lineWidth = 3;
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 12;
                 ctx.shadowColor = '#00ffcc';
                 ctx.stroke();
-                ctx.shadowBlur = 0;
+                ctx.shadowBlur = 0; // Reset ombre pour performances
             });
 
             requestAnimationFrame(animate);
         }
         animate();
 
+        // Gestion tactile ultra réactive
         window.addEventListener('pointerdown', (e) => {
             touchPos.x = e.clientX;
             touchPos.y = e.clientY;
@@ -170,12 +185,14 @@
 
         window.addEventListener('pointerup', () => {
             touchPos.active = false;
+            touchPos.x = null;
         });
 
+        // Gyroscope 3D
         window.addEventListener('deviceorientation', (e) => {
             if (e.gamma !== null && e.beta !== null) {
-                tilt.x = Math.max(-6, Math.min(6, e.gamma / 3));
-                tilt.y = Math.max(-6, Math.min(6, e.beta / 3));
+                tilt.x = Math.max(-8, Math.min(8, e.gamma / 3));
+                tilt.y = Math.max(-8, Math.min(8, e.beta / 3));
             }
         });
     </script>
