@@ -1,97 +1,78 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Fond d'Écran Interactif</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body, html {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #0d1117; /* Couleur de fond sombre */
-      font-family: system-ui, -apple-system, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .wallpaper {
-      width: 100%;
-      height: 100%;
-      /* 
-         'contain' conserve l'image entière sans la couper.
-         Remplace par 'cover' si tu veux que l'image remplisse tout l'écran.
-      */
-      object-fit: contain; 
-      transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-      opacity: 1;
-    }
-    .wallpaper.hidden {
-      opacity: 0;
-      transform: scale(0.96);
-    }
-    .hint {
-      position: absolute;
-      bottom: 24px;
-      color: rgba(255, 255, 255, 0.3);
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      pointer-events: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Live Wallpaper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent; /* Supprime le flash gris au clic sur Android */
+        }
+
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        .wallpaper-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .wallpaper-img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* S'adapte parfaitement à l'écran sans déformer */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            will-change: opacity, transform; /* Active l'accélération matérielle GPU */
+            transform: translate3d(0, 0, 0); /* Force le rendu matériel */
+        }
+
+        .wallpaper-img.active {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="container" id="app">
-    <img id="bg-img" class="wallpaper" src="" alt="Wallpaper">
-    <div class="hint">Appuie pour changer</div>
-  </div>
+    <div class="wallpaper-container" id="wallpaperContainer">
+        <!-- Tes images ici -->
+        <img src="image1.jpg" class="wallpaper-img active" alt="Wallpaper 1">
+        <img src="image2.jpg" class="wallpaper-img" alt="Wallpaper 2">
+        <img src="image3.jpg" class="wallpaper-img" alt="Wallpaper 3">
+    </div>
 
-  <script>
-    // Ajoute ici la liste de tes images (chemins relatifs ou URLs web)
-    const images = [
-      "image1.png",
-      "image2.png",
-      "image3.png"
-    ];
+    <script>
+        const images = document.querySelectorAll('.wallpaper-img');
+        let currentIndex = 0;
+        const container = document.getElementById('wallpaperContainer');
 
-    let currentIndex = 0;
-    const imgElement = document.getElementById('bg-img');
-    const container = document.getElementById('app');
-
-    function changeImage() {
-      if (images.length === 0) return;
-
-      // Effet de transition
-      imgElement.classList.add('hidden');
-
-      setTimeout(() => {
-        currentIndex = (currentIndex + 1) % images.length;
-        imgElement.src = images[currentIndex];
-        imgElement.classList.remove('hidden');
-      }, 300);
-    }
-
-    // Charger la première image
-    if (images.length > 0) {
-      imgElement.src = images[0];
-    }
-
-    // Détection du clic / toucher sur tout l'écran
-    container.addEventListener('click', changeImage);
-  </script>
+        // Changement d'image instantané au premier contact tactile
+        container.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); // Empêche les délais de double-tap/zoom du navigateur
+            
+            // Masque l'image actuelle
+            images[currentIndex].classList.remove('active');
+            
+            // Passe à la suivante
+            currentIndex = (currentIndex + 1) % images.length;
+            
+            // Affiche la nouvelle image de manière fluide
+            images[currentIndex].classList.add('active');
+        }, { passive: false });
+    </script>
 </body>
 </html>
