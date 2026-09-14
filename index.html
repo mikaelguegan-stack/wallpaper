@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>$OSCAR Live Wallpaper</title>
+    <title>$OSCAR Bubblemap Wallpaper</title>
     <style>
         * {
             margin: 0;
@@ -18,123 +18,166 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: #0b0e14;
+            background-color: #05080f;
+            font-family: sans-serif;
         }
 
-        .wallpaper-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            perspective: 1000px;
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
         }
 
-        .wallpaper-img {
+        .hud {
             position: absolute;
-            width: 110%;
-            height: 110%;
-            object-fit: cover;
-            opacity: 0;
-            transition: opacity 0.6s ease-in-out;
-            will-change: opacity, transform;
-            transform: translate3d(0, 0, 0);
-        }
-
-        .wallpaper-img.active {
-            opacity: 1;
-        }
-
-        /* Petit HUD discret Oscar x Ryu */
-        .crypto-hud {
-            position: absolute;
-            bottom: 35px;
+            bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(18, 24, 38, 0.6);
-            border: 1px solid rgba(0, 255, 204, 0.3);
-            padding: 8px 18px;
+            background: rgba(18, 24, 38, 0.7);
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            padding: 8px 16px;
             border-radius: 20px;
-            backdrop-filter: blur(8px);
-            text-align: center;
-            pointer-events: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        .hud-title {
-            font-size: 10px;
-            letter-spacing: 2px;
+            backdrop-filter: blur(10px);
             color: #00ffcc;
+            font-size: 11px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-        }
-
-        .hud-value {
-            font-size: 13px;
-            font-weight: bold;
-            color: #ffffff;
-            margin-top: 1px;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 10;
         }
     </style>
 </head>
 <body>
 
-    <div class="wallpaper-container" id="wallpaperContainer">
-        <!-- Les images seront injectées dynamiquement ici -->
-        <div class="crypto-hud">
-            <div class="hud-title">$OSCAR x @Ryu</div>
-            <div class="hud-value" id="counter">Tap to switch</div>
-        </div>
-    </div>
+    <div class="hud">$OSCAR // Bubblemap Node</div>
+    <canvas id="bubbleCanvas"></canvas>
 
     <script>
-        // LISTE DES IMAGES : Pour ajouter une image, dépose-la simplement dans ton dépôt GitHub 
-        // et ajoute son nom/lien ici ! N'importe qui peut le faire en modifiant ce tableau.
-        const imageFiles = [
-            "image1.jpg",
-            "image2.jpg"
-            // Ajoute d'autres images ici, ex: "image3.jpg", "image4.png", etc.
+        // ==========================================
+        // VOS IMAGES EN .PNG (Modifiable par n'importe qui)
+        // ==========================================
+        const imagesList = [
+            "image1.png",
+            "image2.png",
+            "image3.png"
         ];
 
-        const container = document.getElementById('wallpaperContainer');
-        const counter = document.getElementById('counter');
-        let currentIndex = 0;
-        let imgElements = [];
+        const canvas = document.getElementById('bubbleCanvas');
+        const ctx = canvas.getContext('2d');
 
-        // Génération automatique des balises images dans le HTML
-        imageFiles.forEach((src, index) => {
-            const img = document.createElement('img');
+        let width, height;
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let bubbles = [];
+        let loadedImages = [];
+
+        imagesList.forEach((src, index) => {
+            const img = new Image();
             img.src = src;
-            img.className = `wallpaper-img ${index === 0 ? 'active' : ''}`;
-            container.insertBefore(img, container.firstChild); // Insère derrière le HUD
-            imgElements.push(img);
+            img.onload = () => {
+                loadedImages.push(img);
+                bubbles.push({
+                    x: Math.random() * (width - 150) + 75,
+                    y: Math.random() * (height - 250) + 100,
+                    vx: (Math.random() - 0.5) * 0.8,
+                    vy: (Math.random() - 0.5) * 0.8,
+                    radius: 45,
+                    img: img,
+                    id: index
+                });
+            };
         });
 
-        // Changement d'image instantané au toucher (Tactile ultra réactif)
-        container.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            
-            if (imgElements.length === 0) return;
+        let tilt = { x: 0, y: 0 };
+        let touchPos = { x: null, y: null, active: false };
 
-            imgElements[currentIndex].classList.remove('active');
-            currentIndex = (currentIndex + 1) % imgElements.length;
-            imgElements[currentIndex].classList.add('active');
+        function animate() {
+            ctx.fillStyle = '#05080f';
+            ctx.fillRect(0, 0, width, height);
 
-            counter.innerText = `Image ${currentIndex + 1} / ${imgElements.length}`;
-        }, { passive: false });
+            for (let i = 0; i < bubbles.length; i++) {
+                for (let j = i + 1; j < bubbles.length; j++) {
+                    let dx = bubbles[i].x - bubbles[j].x;
+                    let dy = bubbles[i].y - bubbles[j].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Effet de parallaxe léger avec le gyroscope du téléphone
-        window.addEventListener('deviceorientation', (e) => {
-            let tiltX = e.gamma;
-            let tiltY = e.beta;
-
-            if (tiltX !== null && tiltY !== null && imgElements[currentIndex]) {
-                let x = Math.max(-10, Math.min(10, tiltX));
-                let y = Math.max(-10, Math.min(10, tiltY));
-                imgElements[currentIndex].style.transform = `translate3d(${-x * 0.4}px, ${-y * 0.4}px, 0) scale(1.05)`;
+                    ctx.beginPath();
+                    ctx.moveTo(bubbles[i].x, bubbles[i].y);
+                    ctx.lineTo(bubbles[j].x, bubbles[j].y);
+                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.2)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
             }
-        }, true);
+
+            bubbles.forEach(b => {
+                b.x += b.vx + (tilt.x * 0.1);
+                b.y += b.vy + (tilt.y * 0.1);
+
+                if (b.x - b.radius < 0 || b.x + b.radius > width) b.vx *= -1;
+                if (b.y - b.radius < 0 || b.y + b.radius > height) b.vy *= -1;
+
+                if (touchPos.active) {
+                    let tdx = touchPos.x - b.x;
+                    let tdy = touchPos.y - b.y;
+                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                    if (tdist < 120) {
+                        b.x += tdx * 0.03;
+                        b.y += tdy * 0.03;
+                    }
+                }
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(b.img, b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
+                ctx.restore();
+
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ffcc';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        window.addEventListener('pointerdown', (e) => {
+            touchPos.x = e.clientX;
+            touchPos.y = e.clientY;
+            touchPos.active = true;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (touchPos.active) {
+                touchPos.x = e.clientX;
+                touchPos.y = e.clientY;
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            touchPos.active = false;
+        });
+
+        window.addEventListener('deviceorientation', (e) => {
+            if (e.gamma !== null && e.beta !== null) {
+                tilt.x = Math.max(-6, Math.min(6, e.gamma / 3));
+                tilt.y = Math.max(-6, Math.min(6, e.beta / 3));
+            }
+        });
     </script>
 </body>
 </html>
