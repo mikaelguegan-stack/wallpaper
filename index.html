@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>$OSCAR Bubblemap Wallpaper</title>
+    <title>$OSCAR Bubblemaps</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
@@ -19,257 +16,31 @@
             height: 100vh;
             overflow: hidden;
             background: #030508;
-            font-family: sans-serif;
         }
 
-        .wallpaper-container {
+        .map-container {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
             background: #030508;
-            overflow: hidden;
-        }
-
-        /* Bulles Bubblemap */
-        .bubble {
-            position: absolute;
-            width: 85px;
-            height: 85px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid #00ffcc;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
-            background: #0b0e14;
-            will-change: transform;
-            transform: translate3d(0, 0, 0);
-        }
-
-        .bubble.main-node {
-            width: 105px;
-            height: 105px;
-            border-color: #ff0055;
-            box-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
-        }
-
-        .bubble img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            pointer-events: none;
-        }
-
-        /* Connexions SVG */
-        svg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .link-line {
-            stroke: rgba(0, 255, 204, 0.35);
-            stroke-width: 2;
-        }
-
-        /* HUD */
-        .hud {
-            position: absolute;
-            bottom: 35px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(10, 14, 23, 0.85);
-            border: 1px solid rgba(0, 255, 204, 0.4);
-            padding: 8px 18px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            color: #00ffcc;
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 10;
         }
     </style>
 </head>
 <body>
 
-    <div class="wallpaper-container" id="container">
-        <svg id="svgContainer"></svg>
-        <div class="hud">$OSCAR // Bubblemap</div>
+    <div class="map-container">
+        <!-- Remplace l'URL ci-dessous par l'adresse directe de ta map Bubblemaps si besoin -->
+        <iframe src="https://app.bubblemaps.io/" allowfullscreen></iframe>
     </div>
 
-    <script>
-        // ==========================================
-        // LISTE DES IMAGES (Ajoute ou modifie ici facilement)
-        // ==========================================
-        const imagesList = [
-            "image1.png", // Nœud principal
-            "image2.png",
-            "image3.png"
-        ];
-
-        const container = document.getElementById('container');
-        const svgContainer = document.getElementById('svgContainer');
-        
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
-            width = window.innerWidth;
-            height = window.innerHeight;
-        });
-
-        let bubbles = [];
-        let lines = [];
-
-        // Création des bulles avec des vitesses de déplacement très lentes
-        imagesList.forEach((src, index) => {
-            const bubbleEl = document.createElement('div');
-            const isMain = (index === 0);
-            bubbleEl.className = isMain ? 'bubble main-node' : 'bubble';
-            
-            const imgEl = document.createElement('img');
-            imgEl.src = src;
-            bubbleEl.appendChild(imgEl);
-            container.appendChild(bubbleEl);
-
-            const radius = isMain ? 52 : 42;
-
-            bubbles.push({
-                el: bubbleEl,
-                x: width / 2 + (Math.random() - 0.5) * 150,
-                y: height / 2 + (Math.random() - 0.5) * 150,
-                vx: (Math.random() - 0.5) * 0.4, // Vitesse très lente et fluide
-                vy: (Math.random() - 0.5) * 0.4,
-                radius: radius
-            });
-        });
-
-        // Liaison des lignes du graphe Bubblemap
-        for (let i = 0; i < bubbles.length; i++) {
-            for (let j = i + 1; j < bubbles.length; j++) {
-                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                line.setAttribute("class", "link-line");
-                svgContainer.appendChild(line);
-                lines.push({ line: line, a: bubbles[i], b: bubbles[j] });
-            }
-        }
-
-        let tiltX = 0, tiltY = 0;
-        let touchX = null, touchY = null, isTouching = false;
-
-        // Boucle d'animation ultra-douce
-        function animate() {
-            bubbles.forEach((b1, i) => {
-                // Légère inclinaison gyroscope très douce
-                b1.vx += tiltX * 0.01;
-                b1.vy += tiltY * 0.01;
-                
-                // Forte friction pour stabiliser le mouvement et éviter qu'elles accélèrent
-                b1.vx *= 0.95;
-                b1.vy *= 0.95;
-
-                b1.x += b1.vx;
-                b1.y += b1.vy;
-
-                // Rebond propre sur les bords
-                if (b1.x < b1.radius || b1.x > width - b1.radius) { b1.vx *= -1; b1.x = Math.max(b1.radius, Math.min(width - b1.radius, b1.x)); }
-                if (b1.y < b1.radius || b1.y > height - b1.radius - 80) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 80, b1.y)); }
-
-                // Répulsion entre bulles pour ne pas se superposer
-                for (let j = i + 1; j < bubbles.length; j++) {
-                    let b2 = bubbles[j];
-                    let dx = b2.x - b1.x;
-                    let dy = b2.y - b1.y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-                    let minDist = b1.radius + b2.radius + 30;
-
-                    if (dist < minDist && dist > 0) {
-                        let force = (minDist - dist) / dist * 0.05;
-                        b1.vx -= dx * force;
-                        b1.vy -= dy * force;
-                        b2.vx += dx * force;
-                        b2.vy += dy * force;
-                    }
-                }
-
-                // Interaction tactile forte et directe (attire les bulles vers le doigt)
-                if (isTouching && touchX !== null) {
-                    let tdx = touchX - b1.x;
-                    let tdy = touchY - b1.y;
-                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    if (tdist < 250) {
-                        b1.vx += tdx * 0.008; // Effet aimant vers le doigt
-                        b1.vy += tdy * 0.008;
-                    }
-                }
-
-                // Application de la position
-                b1.el.style.transform = `translate3d(${b1.x - b1.radius}px, ${b1.y - b1.radius}px, 0)`;
-            });
-
-            // Mise à jour des lignes de liaison SVG
-            lines.forEach(l => {
-                l.line.setAttribute("x1", l.a.x);
-                l.line.setAttribute("y1", l.a.y);
-                l.line.setAttribute("x2", l.b.x);
-                l.line.setAttribute("y2", l.b.y);
-            });
-
-            requestAnimationFrame(animate);
-        }
-        requestAnimationFrame(animate);
-
-        // Capture globale des événements tactiles (fonctionne même sur le bureau Android)
-        window.addEventListener('touchstart', (e) => {
-            isTouching = true;
-            touchX = e.touches[0].clientX;
-            touchY = e.touches[0].clientY;
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (e) => {
-            if (isTouching) {
-                touchX = e.touches[0].clientX;
-                touchY = e.touches[0].clientY;
-            }
-        }, { passive: true });
-
-        window.addEventListener('touchend', () => {
-            isTouching = false;
-            touchX = null;
-            touchY = null;
-        });
-
-        // Gestion de la souris (pour tests sur navigateur classique)
-        window.addEventListener('pointerdown', (e) => {
-            isTouching = true;
-            touchX = e.clientX;
-            touchY = e.clientY;
-        });
-        window.addEventListener('pointermove', (e) => {
-            if (isTouching) {
-                touchX = e.clientX;
-                touchY = e.clientY;
-            }
-        });
-        window.addEventListener('pointerup', () => {
-            isTouching = false;
-            touchX = null;
-            touchY = null;
-        });
-
-        // Capteurs d'inclinaison
-        window.addEventListener('deviceorientation', (e) => {
-            if (e.gamma !== null && e.beta !== null) {
-                tiltX = Math.max(-4, Math.min(4, e.gamma / 4));
-                tiltY = Math.max(-4, Math.min(4, e.beta / 4));
-            }
-        });
-    </script>
 </body>
 </html>
