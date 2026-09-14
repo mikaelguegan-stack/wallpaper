@@ -3,90 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>$OSCAR Custom Bubblemap</title>
+    <title>$OSCAR Wallpaper</title>
     <style>
+        /* Force un fond opaque visible sur Android */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
+            background-color: #030508 !important;
             overflow: hidden;
-            background: #030508;
             font-family: sans-serif;
         }
 
-        .wallpaper-container {
-            position: absolute;
+        .screen-wrapper {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
             background: #030508;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999999;
         }
 
-        /* Bulles dynamiques */
-        .bubble {
-            position: absolute;
-            width: 80px;
-            height: 80px;
+        /* Conteneur des images affichées */
+        .gallery {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            max-width: 90vw;
+        }
+
+        .image-card {
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             overflow: hidden;
             border: 3px solid #00ffcc;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
-            background: #0b0e14;
-            will-change: transform;
-            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+            background: #111;
         }
 
-        .bubble img {
+        .image-card img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            pointer-events: none;
         }
 
-        /* Connexions SVG */
-        svg {
+        /* Bouton d'ajout d'image visible en bas */
+        .upload-btn {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .link-line {
-            stroke: rgba(0, 255, 204, 0.3);
-            stroke-width: 2;
-        }
-
-        /* Bouton pour ajouter une image */
-        .add-btn {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 255, 204, 0.15);
-            border: 1px solid #00ffcc;
-            color: #00ffcc;
+            bottom: 40px;
+            background: #00ffcc;
+            color: #030508;
+            border: none;
             padding: 12px 24px;
             border-radius: 30px;
-            font-size: 12px;
             font-weight: bold;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            backdrop-filter: blur(10px);
-            z-index: 100;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            box-shadow: 0 4px 20px rgba(0, 255, 204, 0.4);
         }
 
         #fileInput {
@@ -96,165 +85,35 @@
 </head>
 <body>
 
-    <div class="wallpaper-container" id="container">
-        <svg id="svgContainer"></svg>
+    <div class="screen-wrapper" id="wrapper">
+        <div class="gallery" id="galleryContainer">
+            <!-- Chargement direct de tes images GitHub -->
+            <div class="image-card"><img src="image1.png" alt="1"></div>
+            <div class="image-card"><img src="image2.png" alt="2"></div>
+            <div class="image-card"><img src="image3.png" alt="3"></div>
+        </div>
+
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">+ Ajouter une image</button>
+        <input type="file" id="fileInput" accept="image/*" onchange="addNewImage(event)">
     </div>
 
-    <!-- Bouton flottant pour ajouter une image -->
-    <button class="add-btn" onclick="document.getElementById('fileInput').click()">+ Ajouter une image</button>
-    <input type="file" id="fileInput" accept="image/*" onchange="handleAddImage(event)">
-
     <script>
-        const container = document.getElementById('container');
-        const svgContainer = document.getElementById('svgContainer');
-        
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
-            width = window.innerWidth;
-            height = window.innerHeight;
-        });
-
-        let bubbles = [];
-        let lines = [];
-
-        // Exemples d'images de base (tu peux remplacer ou laisser vide)
-        const initialImages = [
-            "https://picsum.photos/200?random=1",
-            "https://picsum.photos/200?random=2"
-        ];
-
-        function createBubble(imgSrc) {
-            const bubbleEl = document.createElement('div');
-            bubbleEl.className = 'bubble';
-            
-            const imgEl = document.createElement('img');
-            imgEl.src = imgSrc;
-            bubbleEl.appendChild(imgEl);
-            container.appendChild(bubbleEl);
-
-            const radius = 40;
-            const bubbleObj = {
-                el: bubbleEl,
-                x: width / 2 + (Math.random() - 0.5) * 200,
-                y: height / 2 + (Math.random() - 0.5) * 200,
-                vx: (Math.random() - 0.5) * 0.6,
-                vy: (Math.random() - 0.5) * 0.6,
-                radius: radius
-            };
-
-            bubbles.push(bubbleObj);
-            rebuildLines();
-        }
-
-        function rebuildLines() {
-            // Nettoyer les anciennes lignes SVG
-            svgContainer.innerHTML = '';
-            lines = [];
-
-            for (let i = 0; i < bubbles.length; i++) {
-                for (let j = i + 1; j < bubbles.length; j++) {
-                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                    line.setAttribute("class", "link-line");
-                    svgContainer.appendChild(line);
-                    lines.push({ line: line, a: bubbles[i], b: bubbles[j] });
-                }
-            }
-        }
-
-        // Charger les images initiales
-        initialImages.forEach(src => createBubble(src));
-
-        // Fonction pour ajouter une image depuis le téléphone/PC
-        function handleAddImage(event) {
+        function addNewImage(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    createBubble(e.target.result);
+                    const gallery = document.getElementById('galleryContainer');
+                    const card = document.createElement('div');
+                    card.className = 'image-card';
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    card.appendChild(img);
+                    gallery.appendChild(card);
                 };
                 reader.readAsDataURL(file);
             }
         }
-
-        let touchX = null, touchY = null, isTouching = false;
-
-        // Boucle d'animation fluide
-        function animate() {
-            bubbles.forEach((b1, i) => {
-                b1.vx *= 0.96; // Friction
-                b1.vy *= 0.96;
-
-                b1.x += b1.vx;
-                b1.y += b1.vy;
-
-                // Rebond sur les bords
-                if (b1.x < b1.radius || b1.x > width - b1.radius) { b1.vx *= -1; b1.x = Math.max(b1.radius, Math.min(width - b1.radius, b1.x)); }
-                if (b1.y < b1.radius || b1.y > height - b1.radius - 100) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 100, b1.y)); }
-
-                // Répulsion entre bulles
-                for (let j = i + 1; j < bubbles.length; j++) {
-                    let b2 = bubbles[j];
-                    let dx = b2.x - b1.x;
-                    let dy = b2.y - b1.y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-                    let minDist = b1.radius + b2.radius + 20;
-
-                    if (dist < minDist && dist > 0) {
-                        let force = (minDist - dist) / dist * 0.04;
-                        b1.vx -= dx * force;
-                        b1.vy -= dy * force;
-                        b2.vx += dx * force;
-                        b2.vy += dy * force;
-                    }
-                }
-
-                // Interaction avec le doigt
-                if (isTouching && touchX !== null) {
-                    let tdx = touchX - b1.x;
-                    let tdy = touchY - b1.y;
-                    let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    if (tdist < 200) {
-                        b1.vx += tdx * 0.01;
-                        b1.vy += tdy * 0.01;
-                    }
-                }
-
-                b1.el.style.transform = `translate3d(${b1.x - b1.radius}px, ${b1.y - b1.radius}px, 0)`;
-            });
-
-            // Mise à jour des liens SVG
-            lines.forEach(l => {
-                l.line.setAttribute("x1", l.a.x);
-                l.line.setAttribute("y1", l.a.y);
-                l.line.setAttribute("x2", l.b.x);
-                l.line.setAttribute("y2", l.b.y);
-            });
-
-            requestAnimationFrame(animate);
-        }
-        requestAnimationFrame(animate);
-
-        // Gestion tactile globale
-        window.addEventListener('touchstart', (e) => {
-            isTouching = true;
-            touchX = e.touches[0].clientX;
-            touchY = e.touches[0].clientY;
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (e) => {
-            if (isTouching) {
-                touchX = e.touches[0] ? e.touches[0].clientX : touchX;
-                touchY = e.touches[0] ? e.touches[0].clientY : touchY;
-            }
-        }, { passive: true });
-
-        window.addEventListener('touchend', () => { isTouching = false; touchX = null; touchY = null; });
-
-        window.addEventListener('pointerdown', (e) => { isTouching = true; touchX = e.clientX; touchY = e.clientY; });
-        window.addEventListener('pointermove', (e) => { if(isTouching) { touchX = e.clientX; touchY = e.clientY; } });
-        window.addEventListener('pointerup', () => { isTouching = false; touchX = null; touchY = null; });
     </script>
 </body>
 </html>
