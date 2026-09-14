@@ -14,34 +14,45 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* Forcer l'affichage transparent et plein écran pour Android WebView Wallpaper */
         body, html {
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: #05080f;
+            background: #030508 !important;
             font-family: sans-serif;
         }
 
-        .bubblemap-container {
-            position: relative;
+        .wallpaper-root {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
+            background: #030508;
             overflow: hidden;
+            z-index: 99999; /* Force l'affichage par-dessus le fond natif si besoin */
         }
 
-        /* Les bulles d'images */
+        /* Bulles Bubblemap */
         .bubble {
             position: absolute;
-            width: 75px;
-            height: 75px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             overflow: hidden;
             border: 3px solid #00ffcc;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
-            background: #111;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+            background: #0b0e14;
             will-change: transform;
             transform: translate3d(0, 0, 0);
-            cursor: pointer;
+        }
+
+        .bubble.main-node {
+            width: 100px;
+            height: 100px;
+            border-color: #ff0055;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
         }
 
         .bubble img {
@@ -50,7 +61,7 @@
             object-fit: cover;
         }
 
-        /* Réseau de lignes SVG dynamique */
+        /* SVG Réseau Bubblemap */
         svg {
             position: absolute;
             top: 0;
@@ -61,20 +72,19 @@
         }
 
         .link-line {
-            stroke: rgba(0, 255, 204, 0.35);
-            stroke-width: 2;
-            stroke-dasharray: 4 2; /* Effet de données/flux réseau */
+            stroke: rgba(0, 255, 204, 0.4);
+            stroke-width: 2.5;
         }
 
-        /* HUD minimaliste $OSCAR */
+        /* HUD design crypto */
         .hud {
             position: absolute;
-            bottom: 25px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(18, 24, 38, 0.85);
-            border: 1px solid rgba(0, 255, 204, 0.4);
-            padding: 8px 18px;
+            background: rgba(10, 14, 23, 0.9);
+            border: 1px solid rgba(0, 255, 204, 0.5);
+            padding: 8px 20px;
             border-radius: 20px;
             backdrop-filter: blur(10px);
             color: #00ffcc;
@@ -82,30 +92,27 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
             z-index: 10;
         }
     </style>
 </head>
 <body>
 
-    <div class="bubblemap-container" id="container">
-        <!-- SVG dynamique pour le réseau -->
+    <div class="wallpaper-root" id="container">
         <svg id="svgContainer"></svg>
+        <div class="hud">$OSCAR // Live Bubblemap</div>
     </div>
-
-    <div class="hud">$OSCAR // Bubblemap Cluster</div>
 
     <script>
         // ==========================================
-        // LISTE DES IMAGES : N'importe qui peut en rajouter 
-        // simplement en ajoutant "nom.png" ici et dans le dépôt GitHub !
+        // LISTE DES IMAGES (Modifiable par n'importe qui sur GitHub)
         // ==========================================
         const imagesList = [
-            "image1.png",
+            "image1.png", // Nœud principal ou secondaire
             "image2.png",
             "image3.png"
-            // Ex: "image4.png", "image5.png", etc.
+            // Ajoute d'autres images ici facilement !
         ];
 
         const container = document.getElementById('container');
@@ -122,29 +129,31 @@
         let bubbles = [];
         let lines = [];
 
-        // Génération automatique des éléments DOM pour chaque image
+        // Génération des bulles
         imagesList.forEach((src, index) => {
-            // Création de la bulle HTML
             const bubbleEl = document.createElement('div');
-            bubbleEl.className = 'bubble';
+            // Le premier élément est le nœud central/principal plus grand
+            const isMain = (index === 0);
+            bubbleEl.className = isMain ? 'bubble main-node' : 'bubble';
             
             const imgEl = document.createElement('img');
             imgEl.src = src;
             bubbleEl.appendChild(imgEl);
             container.appendChild(bubbleEl);
 
-            // Position de départ aléatoire mais espacée
+            const size = isMain ? 50 : 40;
+
             bubbles.push({
                 el: bubbleEl,
-                x: Math.random() * (width - 150) + 75,
-                y: Math.random() * (height - 250) + 100,
-                vx: (Math.random() - 0.5) * 1.5,
-                vy: (Math.random() - 0.5) * 1.5,
-                radius: 37.5 // Moitié de 75px
+                x: width / 2 + (Math.random() - 0.5) * 200,
+                y: height / 2 + (Math.random() - 0.5) * 200,
+                vx: (Math.random() - 0.5) * 1.8,
+                vy: (Math.random() - 0.5) * 1.8,
+                radius: size
             });
         });
 
-        // Génération des lignes de liaison du graphe (Style Bubblemap)
+        // Connexions style Bubblemap en étoile autour du premier nœud (ou interconnectées)
         for (let i = 0; i < bubbles.length; i++) {
             for (let j = i + 1; j < bubbles.length; j++) {
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -157,37 +166,32 @@
         let tiltX = 0, tiltY = 0;
         let touchX = null, touchY = null, isTouching = false;
 
-        // Boucle de physique Bubblemap ultra-fluide (60 FPS)
-        function animateBubblemap() {
-            // 1. Mise à jour de la position et répulsion entre bulles (pour qu'elles ne se superforcent pas)
-            for (let i = 0; i < bubbles.length; i++) {
-                let b1 = bubbles[i];
-
-                // Ajout de l'influence du gyroscope
-                b1.vx += tiltX * 0.03;
-                b1.vy += tiltY * 0.03;
-
-                // Friction pour stabiliser la vitesse
-                b1.vx *= 0.98;
-                b1.vy *= 0.98;
+        // Boucle d'affichage forcée (Résout le bug d'écran d'accueil noir)
+        function forceRender() {
+            // Physique des bulles
+            bubbles.forEach((b1, i) => {
+                b1.vx += tiltX * 0.04;
+                b1.vy += tiltY * 0.04;
+                b1.vx *= 0.96;
+                b1.vy *= 0.96;
 
                 b1.x += b1.vx;
                 b1.y += b1.vy;
 
-                // Rebond sur les bords de l'écran
+                // Rebond bords
                 if (b1.x < b1.radius || b1.x > width - b1.radius) { b1.vx *= -1; b1.x = Math.max(b1.radius, Math.min(width - b1.radius, b1.x)); }
-                if (b1.y < b1.radius || b1.y > height - b1.radius - 50) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 50, b1.y)); }
+                if (b1.y < b1.radius || b1.y > height - b1.radius - 80) { b1.vy *= -1; b1.y = Math.max(b1.radius, Math.min(height - b1.radius - 80, b1.y)); }
 
-                // Répulsion entre bulles proches (Effet Bubblemap organique)
+                // Répulsion inter-bulles
                 for (let j = i + 1; j < bubbles.length; j++) {
                     let b2 = bubbles[j];
                     let dx = b2.x - b1.x;
                     let dy = b2.y - b1.y;
                     let dist = Math.sqrt(dx * dx + dy * dy);
-                    let minDist = b1.radius + b2.radius + 35; // Espace entre les bulles
+                    let minDist = b1.radius + b2.radius + 40;
 
                     if (dist < minDist && dist > 0) {
-                        let force = (minDist - dist) / dist * 0.08;
+                        let force = (minDist - dist) / dist * 0.1;
                         b1.vx -= dx * force;
                         b1.vy -= dy * force;
                         b2.vx += dx * force;
@@ -195,22 +199,21 @@
                     }
                 }
 
-                // Interaction tactile (attire ou repousse légèrement vers le doigt)
+                // Interaction tactile
                 if (isTouching && touchX !== null) {
                     let tdx = touchX - b1.x;
                     let tdy = touchY - b1.y;
                     let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    if (tdist < 180) {
-                        b1.vx += tdx * 0.002;
-                        b1.vy += tdy * 0.002;
+                    if (tdist < 200) {
+                        b1.vx += tdx * 0.003;
+                        b1.vy += tdy * 0.003;
                     }
                 }
 
-                // Application CSS GPU
                 b1.el.style.transform = `translate3d(${b1.x - b1.radius}px, ${b1.y - b1.radius}px, 0)`;
-            }
+            });
 
-            // 2. Mise à jour des lignes de connexion du réseau
+            // Mise à jour des lignes SVG
             lines.forEach(l => {
                 l.line.setAttribute("x1", l.a.x);
                 l.line.setAttribute("y1", l.a.y);
@@ -218,35 +221,33 @@
                 l.line.setAttribute("y2", l.b.y);
             });
 
-            requestAnimationFrame(animateBubblemap);
+            requestAnimationFrame(forceRender);
         }
-        requestAnimationFrame(animateBubblemap);
+        
+        // Lancement immédiat et continu pour forcer le WebView à afficher le rendu sur le bureau
+        requestAnimationFrame(forceRender);
 
-        // Gestion tactile
         window.addEventListener('pointerdown', (e) => {
             isTouching = true;
             touchX = e.clientX;
             touchY = e.clientY;
         });
-
         window.addEventListener('pointermove', (e) => {
             if (isTouching) {
                 touchX = e.clientX;
                 touchY = e.clientY;
             }
         });
-
         window.addEventListener('pointerup', () => {
             isTouching = false;
             touchX = null;
             touchY = null;
         });
 
-        // Gyroscope
         window.addEventListener('deviceorientation', (e) => {
             if (e.gamma !== null && e.beta !== null) {
-                tiltX = Math.max(-5, Math.min(5, e.gamma / 3));
-                tiltY = Math.max(-5, Math.min(5, e.beta / 3));
+                tiltX = Math.max(-6, Math.min(6, e.gamma / 3));
+                tiltY = Math.max(-6, Math.min(6, e.beta / 3));
             }
         });
     </script>
