@@ -14,7 +14,6 @@
             background-color: #0b0e14;
             font-family: sans-serif;
             user-select: none;
-            -webkit-user-select: none;
         }
 
         #canvas-container {
@@ -24,9 +23,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            transition: opacity 0.5s ease;
         }
 
+        /* Utilisation d'un bouton HTML natif : le moyen le plus fiable sur mobile pour capturer les clics */
         .bubble {
             position: absolute;
             width: 80px;
@@ -35,13 +34,14 @@
             overflow: hidden;
             border: 3px solid #00ffcc;
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-            cursor: pointer;
             background: #1a2233;
+            padding: 0;
+            cursor: pointer;
+            outline: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            will-change: transform;
-            touch-action: none; /* Permet la capture propre du pointeur */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .bubble img {
@@ -90,16 +90,17 @@
             background-repeat: no-repeat;
             background-color: #0b0e14;
             display: none;
-            z-index: 5;
+            z-index: 100;
         }
     </style>
 </head>
 <body>
 
     <div id="canvas-container">
-        <div class="bubble" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
-        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
+        <!-- Bulles converties en balises <button> pour garantir l'événement tactile natif -->
+        <button class="bubble" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></button>
+        <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
+        <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
     </div>
 
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
@@ -110,99 +111,39 @@
     <script>
         const container = document.getElementById('canvas-container');
         const fullscreenView = document.getElementById('fullscreen-view');
-        let touchStartY = 0;
         let activeBubble = null;
         const bubblesData = [];
 
         function initBubbles() {
             const elements = document.querySelectorAll('.bubble');
             elements.forEach((el, index) => {
-                const x = 50 + (index * 120) % (window.innerWidth - 100);
-                const y = 100 + Math.floor(index / 3) * 120;
+                const x = 50 + (index * 110) % (window.innerWidth - 100);
+                const y = 100 + Math.floor(index / 3) * 110;
                 
-                const item = {
+                bubblesData.push({
                     element: el,
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 1.5,
-                    vy: (Math.random() - 0.5) * 1.5,
-                    isBeingDragged: false
-                };
-
-                setupPointerControls(item);
-                bubblesData.push(item);
+                    vy: (Math.random() - 0.5) * 1.5
+                });
             });
         }
 
-        function setupPointerControls(item) {
-            let el = item.element;
-            let startX = 0, startY = 0;
-            let totalMoved = 0;
-
-            el.addEventListener('pointerdown', (e) => {
-                startX = e.clientX;
-                startY = e.clientY;
-                totalMoved = 0;
-                item.isBeingDragged = true;
-                item.vx = 0;
-                item.vy = 0;
-                el.setPointerCapture(e.pointerId);
-            });
-
-            el.addEventListener('pointermove', (e) => {
-                if (!item.isBeingDragged) return;
-                
-                let dx = e.clientX - startX;
-                let dy = e.clientY - startY;
-
-                totalMoved += Math.abs(dx) + Math.abs(dy);
-
-                item.x += dx;
-                item.y += dy;
-                startX = e.clientX;
-                startY = e.clientY;
-            });
-
-            el.addEventListener('pointerup', (e) => {
-                if (!item.isBeingDragged) return;
-                item.isBeingDragged = false;
-
-                try {
-                    el.releasePointerCapture(e.pointerId);
-                } catch (err) {}
-
-                // Si on a très peu bougé (moins de 8 pixels), c'est considéré comme un clic/tap direct
-                if (totalMoved < 8) {
-                    handleBubbleClick(item);
-                } else {
-                    // Sinon, c'était un lancer, on donne de l'impulsion
-                    item.vx = (Math.random() - 0.5) * 4;
-                    item.vy = (Math.random() - 0.5) * 4;
-                }
-            });
-        }
-
+        // Animation fluide des bulles en arrière-plan
         function updatePhysics() {
             const maxX = window.innerWidth - 80;
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                if (!item.isBeingDragged) {
-                    item.x += item.vx;
-                    item.y += item.vy;
+                item.x += item.vx;
+                item.y += item.vy;
 
-                    // Frottement et maintien du mouvement
-                    item.vx *= 0.98;
-                    item.vy *= 0.98;
-
-                    if (Math.abs(item.vx) < 0.3) item.vx = (Math.random() - 0.5) * 1.5;
-                    if (Math.abs(item.vy) < 0.3) item.vy = (Math.random() - 0.5) * 1.5;
-
-                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
-                }
+                // Rebond sur les bords
+                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
@@ -213,12 +154,13 @@
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
-        function handleBubbleClick(item) {
-            if (item.element.classList.contains('empty')) {
-                activeBubble = item.element;
+        // Gestion propre de l'ouverture de l'image au clic direct
+        function openBubble(bubbleElement) {
+            if (bubbleElement.classList.contains('empty')) {
+                activeBubble = bubbleElement;
                 document.getElementById('file-input').click();
             } else {
-                const img = item.element.querySelector('img');
+                const img = bubbleElement.querySelector('img');
                 if (img) {
                     fullscreenView.style.backgroundImage = `url(${img.src})`;
                     fullscreenView.style.display = 'block';
@@ -244,22 +186,20 @@
                         activeBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
                         activeBubble = null;
                     } else {
-                        const newDiv = document.createElement('div');
-                        newDiv.className = 'bubble';
-                        newDiv.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newDiv.oncontextmenu = (ev) => deleteBubble(ev, newDiv);
-                        container.appendChild(newDiv);
+                        const newBtn = document.createElement('button');
+                        newBtn.className = 'bubble';
+                        newBtn.innerHTML = `<img src="${imageUrl}" alt="">`;
+                        newBtn.onclick = function() { openBubble(newBtn); };
+                        newBtn.oncontextmenu = function(ev) { deleteBubble(ev, newBtn); };
+                        container.appendChild(newBtn);
 
-                        const newItem = {
-                            element: newDiv,
+                        bubblesData.push({
+                            element: newBtn,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
                             vx: (Math.random() - 0.5) * 2,
-                            vy: (Math.random() - 0.5) * 2,
-                            isBeingDragged: false
-                        };
-                        setupPointerControls(newItem);
-                        bubblesData.push(newItem);
+                            vy: (Math.random() - 0.5) * 2
+                        });
                     }
                 }
                 reader.readAsDataURL(file);
@@ -268,25 +208,12 @@
 
         function deleteBubble(event, bubbleElement) {
             event.preventDefault();
-            if (confirm("Voulez-vous supprimer cette bulle ?")) {
+            if (confirm("Supprimer cette bulle ?")) {
                 const index = bubblesData.findIndex(item => item.element === bubbleElement);
-                if (index !== -1) {
-                    bubblesData.splice(index, 1);
-                }
+                if (index !== -1) bubblesData.splice(index, 1);
                 bubbleElement.remove();
             }
         }
-
-        fullscreenView.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        });
-
-        fullscreenView.addEventListener('touchend', (e) => {
-            let touchEndY = e.changedTouches[0].clientY;
-            if (touchStartY - touchEndY > 50) {
-                resetView();
-            }
-        });
 
         function resetView() {
             fullscreenView.style.display = 'none';
