@@ -15,7 +15,6 @@
             font-family: sans-serif;
         }
 
-        /* Conteneur principal façon Bubblemap */
         #canvas-container {
             position: relative;
             width: 100%;
@@ -30,7 +29,7 @@
             transition: opacity 0.5s ease;
         }
 
-        /* Style des bulles */
+        /* Style des bulles normales */
         .bubble {
             width: 80px;
             height: 80px;
@@ -42,6 +41,9 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             background: #1a2233;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .bubble:hover {
@@ -55,7 +57,20 @@
             object-fit: cover;
         }
 
-        /* Bouton pour ajouter une image */
+        /* Style spécifique pour les bulles vides (prêtes à être remplies) */
+        .bubble.empty {
+            border: 3px dashed #666;
+            background: rgba(26, 34, 51, 0.5);
+            color: #888;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .bubble.empty:hover {
+            border-color: #00ffcc;
+            color: #00ffcc;
+        }
+
         #add-btn {
             position: fixed;
             bottom: 30px;
@@ -76,7 +91,6 @@
             display: none;
         }
 
-        /* Vue plein écran lorsque l'image est sélectionnée comme fond */
         #fullscreen-view {
             position: fixed;
             top: 0;
@@ -111,19 +125,19 @@
 </head>
 <body>
 
-    <!-- Grille des bulles -->
-    <div id="canvas-container" id="bubblemap">
-        <!-- Bulles par défaut (images d'exemple ou tokens OSCAR) -->
+    <div id="canvas-container">
+        <!-- Bulles pleines par défaut -->
         <div class="bubble" onclick="setWallpaper('https://picsum.photos/seed/1/800/1200')"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble" onclick="setWallpaper('https://picsum.photos/seed/2/800/1200')"><img src="https://picsum.photos/seed/2/200/200" alt=""></div>
-        <div class="bubble" onclick="setWallpaper('https://picsum.photos/seed/3/800/1200')"><img src="https://picsum.photos/seed/3/200/200" alt=""></div>
+        
+        <!-- Bulles vides prêtes à être remplies au clic -->
+        <div class="bubble empty" onclick="triggerFill(this)">+</div>
+        <div class="bubble empty" onclick="triggerFill(this)">+</div>
+        <div class="bubble empty" onclick="triggerFill(this)">+</div>
     </div>
 
-    <!-- Bouton d'ajout d'image -->
-    <button id="add-btn" onclick="document.getElementById('file-input').click()">+ Ajouter</button>
+    <button id="add-btn" onclick="document.getElementById('file-input').click()">+ Ajouter une bulle</button>
     <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
-    <!-- Vue plein écran -->
     <div id="fullscreen-view" onclick="resetView()">
         <div class="hint">Balayer vers le haut pour revenir</div>
     </div>
@@ -132,22 +146,52 @@
         const container = document.getElementById('canvas-container');
         const fullscreenView = document.getElementById('fullscreen-view');
         let touchStartY = 0;
+        let activeEmptyBubble = null; // Mémorise quelle bulle vide est en cours de remplissage
 
-        // Fonction pour mettre l'image en fond d'écran
         function setWallpaper(imageUrl) {
             fullscreenView.style.backgroundImage = `url(${imageUrl})`;
             fullscreenView.style.display = 'flex';
             container.style.opacity = '0';
         }
 
-        // Gestion du balayage vers le haut (Swipe Up) pour retourner au Bubblemap
+        // Quand on clique sur une bulle vide, on ouvre le sélecteur de fichier pour elle
+        function triggerFill(bubbleElement) {
+            activeEmptyBubble = bubbleElement;
+            document.getElementById('file-input').click();
+        }
+
+        function addNewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageUrl = e.target.result;
+                    
+                    if (activeEmptyBubble) {
+                        // Si on a cliqué sur une bulle vide spécifique, on la remplit !
+                        activeEmptyBubble.classList.remove('empty');
+                        activeEmptyBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
+                        activeEmptyBubble.onclick = () => setWallpaper(imageUrl);
+                        activeEmptyBubble = nullptr; // Reset
+                    } else {
+                        // Sinon, on crée une nouvelle bulle normalement via le bouton global
+                        const newBubble = document.createElement('div');
+                        newBubble.className = 'bubble';
+                        newBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
+                        newBubble.onclick = () => setWallpaper(imageUrl);
+                        container.appendChild(newBubble);
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
         fullscreenView.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
         });
 
         fullscreenView.addEventListener('touchend', (e) => {
             let touchEndY = e.changedTouches[0].clientY;
-            // Si l'utilisateur a balayé vers le haut (différence négative importante)
             if (touchStartY - touchEndY > 50) {
                 resetView();
             }
@@ -156,26 +200,6 @@
         function resetView() {
             fullscreenView.style.display = 'none';
             container.style.opacity = '1';
-        }
-
-        // Permettre à l'utilisateur d'ajouter sa propre image depuis son appareil
-        function addNewImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imageUrl = e.target.result;
-                    
-                    // Crée une nouvelle bulle dynamiquement
-                    const newBubble = document.createElement('div');
-                    newBubble.className = 'bubble';
-                    newBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
-                    newBubble.onclick = () => setWallpaper(imageUrl);
-                    
-                    container.appendChild(newBubble);
-                }
-                reader.readAsDataURL(file);
-            }
         }
     </script>
 </body>
