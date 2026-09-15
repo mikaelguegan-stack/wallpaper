@@ -29,7 +29,6 @@
             transition: opacity 0.5s ease;
         }
 
-        /* Style des bulles normales */
         .bubble {
             width: 80px;
             height: 80px;
@@ -44,6 +43,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         .bubble:hover {
@@ -57,7 +57,6 @@
             object-fit: cover;
         }
 
-        /* Style spécifique pour les bulles vides (prêtes à être remplies) */
         .bubble.empty {
             border: 3px dashed #666;
             background: rgba(26, 34, 51, 0.5);
@@ -101,62 +100,46 @@
             background-position: center;
             display: none;
             z-index: 5;
-            justify-content: center;
-            align-items: flex-end;
-            padding-bottom: 50px;
-        }
-
-        .hint {
-            color: white;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            letter-spacing: 1px;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-10px);}
-            60% {transform: translateY(-5px);}
         }
     </style>
 </head>
 <body>
 
     <div id="canvas-container">
-        <!-- Bulles pleines par défaut -->
-        <div class="bubble" onclick="setWallpaper('https://picsum.photos/seed/1/800/1200')"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        
-        <!-- Bulles vides prêtes à être remplies au clic -->
-        <div class="bubble empty" onclick="triggerFill(this)">+</div>
-        <div class="bubble empty" onclick="triggerFill(this)">+</div>
-        <div class="bubble empty" onclick="triggerFill(this)">+</div>
+        <div class="bubble" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
+        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
     </div>
 
-    <button id="add-btn" onclick="document.getElementById('file-input').click()">+ Ajouter une bulle</button>
+    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
     <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
-    <div id="fullscreen-view" onclick="resetView()">
-        <div class="hint">Balayer vers le haut pour revenir</div>
-    </div>
+    <div id="fullscreen-view" onclick="resetView()"></div>
 
     <script>
         const container = document.getElementById('canvas-container');
         const fullscreenView = document.getElementById('fullscreen-view');
         let touchStartY = 0;
-        let activeEmptyBubble = null; // Mémorise quelle bulle vide est en cours de remplissage
+        let activeBubble = null;
 
-        function setWallpaper(imageUrl) {
-            fullscreenView.style.backgroundImage = `url(${imageUrl})`;
-            fullscreenView.style.display = 'flex';
-            container.style.opacity = '0';
+        function handleBubbleClick(bubbleElement) {
+            if (bubbleElement.classList.contains('empty')) {
+                // Si la bulle est vide, on l'ouvre pour y mettre une image
+                activeBubble = bubbleElement;
+                document.getElementById('file-input').click();
+            } else {
+                // Si elle est pleine, on met l'image en fond d'écran plein écran
+                const img = bubbleElement.querySelector('img');
+                if (img) {
+                    fullscreenView.style.backgroundImage = `url(${img.src})`;
+                    fullscreenView.style.display = 'block';
+                    container.style.opacity = '0';
+                }
+            }
         }
 
-        // Quand on clique sur une bulle vide, on ouvre le sélecteur de fichier pour elle
-        function triggerFill(bubbleElement) {
-            activeEmptyBubble = bubbleElement;
+        function triggerAddGlobal() {
+            activeBubble = null; // null signifie création d'une nouvelle bulle
             document.getElementById('file-input').click();
         }
 
@@ -167,18 +150,18 @@
                 reader.onload = function(e) {
                     const imageUrl = e.target.result;
                     
-                    if (activeEmptyBubble) {
-                        // Si on a cliqué sur une bulle vide spécifique, on la remplit !
-                        activeEmptyBubble.classList.remove('empty');
-                        activeEmptyBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        activeEmptyBubble.onclick = () => setWallpaper(imageUrl);
-                        activeEmptyBubble = nullptr; // Reset
+                    if (activeBubble) {
+                        // Remplit la bulle vide existante
+                        activeBubble.classList.remove('empty');
+                        activeBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
+                        activeBubble = null;
                     } else {
-                        // Sinon, on crée une nouvelle bulle normalement via le bouton global
+                        // Crée une toute nouvelle bulle
                         const newBubble = document.createElement('div');
                         newBubble.className = 'bubble';
                         newBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newBubble.onclick = () => setWallpaper(imageUrl);
+                        newBubble.onclick = () => handleBubbleClick(newBubble);
+                        newBubble.oncontextmenu = (ev) => deleteBubble(ev, newBubble);
                         container.appendChild(newBubble);
                     }
                 }
@@ -186,6 +169,15 @@
             }
         }
 
+        // Effacer une bulle (via un appui long / clic droit)
+        function deleteBubble(event, bubbleElement) {
+            event.preventDefault(); // Empêche le menu contextuel du navigateur
+            if (confirm("Voulez-vous supprimer cette bulle ?")) {
+                bubbleElement.remove();
+            }
+        }
+
+        // Balayage vers le haut (Swipe Up) pour revenir au Bubblemap
         fullscreenView.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
         });
