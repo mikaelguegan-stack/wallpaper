@@ -29,7 +29,7 @@
 
         .bubble {
             position: absolute;
-            width: 85px;
+            width: 85px; /* Tu peux modifier la taille ici (ex: 100px) */
             height: 85px;
             border-radius: 50%;
             overflow: hidden;
@@ -139,8 +139,8 @@
         
         let currentParentId = null;
         let activeBubbleForUpload = null;
+        const bubbleSize = 85; // Doit correspondre à la largeur CSS de la bulle
 
-        // Correspondance exacte avec les noms de fichiers de ton dépôt GitHub
         const appData = {
             root: [
                 { id: 'folder-shibus', type: 'folder', src: 'Shibus.png' },
@@ -199,9 +199,11 @@
         }
 
         function updatePhysics() {
-            const maxX = window.innerWidth - 85;
-            const maxY = window.innerHeight - 85;
+            const maxX = window.innerWidth - bubbleSize;
+            const maxY = window.innerHeight - bubbleSize;
+            const radius = bubbleSize; // Distance de collision basée sur la taille
 
+            // 1. Gestion des déplacements et rebonds sur les murs
             activeBubblesPhysics.forEach(item => {
                 item.x += item.vx;
                 item.y += item.vy;
@@ -210,7 +212,43 @@
                 if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                 if (item.y <= 0) { item.y = 0; item.vy *= -1; }
                 if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+            });
 
+            // 2. Gestion des collisions entre les bulles (entrechoquements)
+            for (let i = 0; i < activeBubblesPhysics.length; i++) {
+                for (let j = i + 1; j < activeBubblesPhysics.length; j++) {
+                    let b1 = activeBubblesPhysics[i];
+                    let b2 = activeBubblesPhysics[j];
+
+                    let dx = b2.x - b1.x;
+                    let dy = b2.y - b1.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < radius) {
+                        // Collision détectée ! On inverse les vitesses pour simuler le choc
+                        let overlap = radius - distance;
+                        let nx = dx / distance;
+                        let ny = dy / distance;
+
+                        // Séparation des bulles pour éviter qu'elles ne se bloquent
+                        b1.x -= nx * overlap / 2;
+                        b1.y -= ny * overlap / 2;
+                        b2.x += nx * overlap / 2;
+                        b2.y += ny * overlap / 2;
+
+                        // Échange des vecteurs de vitesse (rebond élastique simple)
+                        let tempVx = b1.vx;
+                        let tempVy = b1.vy;
+                        b1.vx = b2.vx;
+                        b1.vy = b2.vy;
+                        b2.vx = tempVx;
+                        b2.vy = tempVy;
+                    }
+                }
+            }
+
+            // Application des positions finales sur le DOM
+            activeBubblesPhysics.forEach(item => {
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
