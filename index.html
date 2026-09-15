@@ -15,6 +15,7 @@
             font-family: sans-serif;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: none;
         }
 
         #canvas-container {
@@ -124,20 +125,65 @@
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 1.2,
-                    vy: (Math.random() - 0.5) * 1.2
+                    vy: (Math.random() - 0.5) * 1.2,
+                    isBeingDragged: false
                 };
 
-                // Utilisation de touchend pour une réactivité immédiate sur mobile
-                el.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    handleBubbleClick(item);
-                });
-                // Garde aussi le clic pour les tests sur PC
-                el.addEventListener('click', () => {
-                    handleBubbleClick(item);
-                });
-
+                setupDragAndClick(item);
                 bubblesData.push(item);
+            });
+        }
+
+        function setupDragAndClick(item) {
+            let el = item.element;
+            let startX = 0, startY = 0;
+            let currentPointerId = null;
+            let hasMoved = false;
+
+            el.addEventListener('pointerdown', (e) => {
+                currentPointerId = e.pointerId;
+                el.setPointerCapture(e.pointerId);
+                startX = e.clientX;
+                startY = e.clientY;
+                hasMoved = false;
+                item.isBeingDragged = true;
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (!item.isBeingDragged || e.pointerId !== currentPointerId) return;
+
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
+
+                // Si on bouge de plus de 5 pixels, on considère que l'utilisateur déplace la bulle
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    hasMoved = true;
+                }
+
+                if (hasMoved) {
+                    item.x += dx;
+                    item.y += dy;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                }
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (e.pointerId !== currentPointerId) return;
+                item.isBeingDragged = false;
+
+                // Si le doigt n'a pas bougé, c'est un clic ! On ouvre l'image ou la bulle vide
+                if (!hasMoved) {
+                    handleBubbleClick(item);
+                } else {
+                    // Sinon, on donne un petit élan de lancer
+                    item.vx = (Math.random() - 0.5) * 2;
+                    item.vy = (Math.random() - 0.5) * 2;
+                }
+
+                try {
+                    el.releasePointerCapture(e.pointerId);
+                } catch (err) {}
             });
         }
 
@@ -146,13 +192,15 @@
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                item.x += item.vx;
-                item.y += item.vy;
+                if (!item.isBeingDragged) {
+                    item.x += item.vx;
+                    item.y += item.vy;
 
-                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                }
 
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
@@ -179,7 +227,7 @@
 
         function triggerAddGlobal() {
             activeBubble = null;
-            document.getElementById('file-input').click();
+            document.getElementById('file-input'].click();
         }
 
         function addNewImage(event) {
@@ -205,15 +253,10 @@
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
                             vx: (Math.random() - 0.5) * 1.5,
-                            vy: (Math.random() - 0.5) * 1.5
+                            vy: (Math.random() - 0.5) * 1.5,
+                            isBeingDragged: false
                         };
-                        newItem.element.addEventListener('touchend', (e) => {
-                            e.preventDefault();
-                            handleBubbleClick(newItem);
-                        });
-                        newItem.element.addEventListener('click', () => {
-                            handleBubbleClick(newItem);
-                        });
+                        setupDragAndClick(newItem);
                         bubblesData.push(newItem);
                     }
                 }
