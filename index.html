@@ -41,7 +41,7 @@
             align-items: center;
             justify-content: center;
             will-change: transform;
-            /* Ne pas mettre touch-action: none ici pour laisser le tap fonctionner */
+            touch-action: none;
         }
 
         .bubble img {
@@ -129,24 +129,24 @@
                     isBeingDragged: false
                 };
 
-                setupInteraction(item);
+                setupTouchAndDrag(item);
                 bubblesData.push(item);
             });
         }
 
-        function setupInteraction(item) {
+        function setupTouchAndDrag(item) {
             let el = item.element;
             let startX = 0, startY = 0;
             let initialX = 0, initialY = 0;
             let hasMoved = false;
 
             el.addEventListener('pointerdown', (e) => {
-                item.isBeingDragged = true;
-                hasMoved = false;
                 startX = e.clientX;
                 startY = e.clientY;
                 initialX = e.clientX;
                 initialY = e.clientY;
+                hasMoved = false;
+                item.isBeingDragged = true;
                 el.setPointerCapture(e.pointerId);
             });
 
@@ -156,8 +156,7 @@
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
 
-                // Si on bouge de plus de 5 pixels, c'est un déplacement
-                if (Math.abs(e.clientX - initialX) > 5 || Math.abs(e.clientY - initialY) > 5) {
+                if (Math.abs(e.clientX - initialX) > 6 || Math.abs(e.clientY - initialY) > 6) {
                     hasMoved = true;
                 }
 
@@ -177,18 +176,14 @@
                     el.releasePointerCapture(e.pointerId);
                 } catch (err) {}
 
-                // Si on a bougé, on donne une impulsion (lancer)
-                if (hasMoved) {
-                    item.vx = dx_velocity = (Math.random() - 0.5) * 2;
+                if (!hasMoved) {
+                    // Si on n'a pas bougé, c'est un clic direct !
+                    handleBubbleClick(item);
+                } else {
+                    // Sinon, petit élan de lancer
+                    item.vx = (Math.random() - 0.5) * 2;
                     item.vy = (Math.random() - 0.5) * 2;
                 }
-            });
-
-            // Utilisation de l'événement click standard qui gère parfaitement le tapotement sur mobile
-            el.addEventListener('click', (e) => {
-                // Si l'utilisateur vient de faire un glissé, on ignore le clic
-                if (hasMoved) return;
-                handleBubbleClick(item);
             });
         }
 
@@ -261,7 +256,7 @@
                             vy: (Math.random() - 0.5) * 1.5,
                             isBeingDragged: false
                         };
-                        setupInteraction(newItem);
+                        setupTouchAndDrag(newItem);
                         bubblesData.push(newItem);
                     }
                 }
