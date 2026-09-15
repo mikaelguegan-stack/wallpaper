@@ -113,10 +113,9 @@
         let activeBubble = null;
         const bubblesData = [];
 
-        // Gestion du déplacement tactile et du clic
         let draggedItem = null;
         let offsetX = 0, offsetY = 0;
-        let isDragging = false;
+        let hasMoved = false;
         let startTouchX = 0, startTouchY = 0;
 
         function initBubbles() {
@@ -143,7 +142,7 @@
             let el = item.element;
 
             el.addEventListener('pointerdown', (e) => {
-                isDragging = false;
+                hasMoved = false;
                 draggedItem = item;
                 startTouchX = e.clientX;
                 startTouchY = e.clientY;
@@ -157,8 +156,8 @@
                 if (draggedItem === item) {
                     let dx = e.clientX - startTouchX;
                     let dy = e.clientY - startTouchY;
-                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                        isDragging = true; // C'est un mouvement (glissé)
+                    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+                        hasMoved = true; // On a bougé, ce n'est plus un simple clic
                     }
                     item.x = e.clientX - offsetX;
                     item.y = e.clientY - offsetY;
@@ -168,12 +167,11 @@
             el.addEventListener('pointerup', (e) => {
                 if (draggedItem === item) {
                     item.isBeingDragged = false;
-                    // Donne une petite impulsion au lancer selon le mouvement
                     item.vx = (e.clientX - startTouchX) * 0.1;
                     item.vy = (e.clientY - startTouchY) * 0.1;
                     
-                    // Si on n'a pas bougé, c'est considéré comme un clic simple !
-                    if (!isDragging) {
+                    // Si on n'a pas bougé le doigt, c'est un clic validé !
+                    if (!hasMoved) {
                         handleBubbleClick(item);
                     }
                     draggedItem = null;
@@ -190,15 +188,12 @@
                     item.x += item.vx;
                     item.y += item.vy;
 
-                    // Friction naturelle pour ralentir doucement le lancer
                     item.vx *= 0.99;
                     item.vy *= 0.99;
 
-                    // Relance un tout petit peu si la bulle s'arrête complètement
                     if (Math.abs(item.vx) < 0.2) item.vx = (Math.random() - 0.5) * 1.2;
                     if (Math.abs(item.vy) < 0.2) item.vy = (Math.random() - 0.5) * 1.2;
 
-                    // Rebond sur les bords
                     if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                     if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                     if (item.y <= 0) { item.y = 0; item.vy *= -1; }
