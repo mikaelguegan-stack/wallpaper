@@ -14,6 +14,7 @@
             background-color: #0b0e14;
             font-family: sans-serif;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         #canvas-container {
@@ -23,9 +24,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            transition: opacity 0.3s ease;
         }
 
-        /* Utilisation d'un bouton HTML natif : le moyen le plus fiable sur mobile pour capturer les clics */
         .bubble {
             position: absolute;
             width: 80px;
@@ -42,6 +43,7 @@
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
+            will-change: transform;
         }
 
         .bubble img {
@@ -91,13 +93,13 @@
             background-color: #0b0e14;
             display: none;
             z-index: 100;
+            touch-action: pan-y;
         }
     </style>
 </head>
 <body>
 
     <div id="canvas-container">
-        <!-- Bulles converties en balises <button> pour garantir l'événement tactile natif -->
         <button class="bubble" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></button>
         <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
         <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
@@ -106,7 +108,7 @@
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
     <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
-    <div id="fullscreen-view" onclick="resetView()"></div>
+    <div id="fullscreen-view"></div>
 
     <script>
         const container = document.getElementById('canvas-container');
@@ -124,13 +126,13 @@
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 1.5,
-                    vy: (Math.random() - 0.5) * 1.5
+                    vx: (Math.random() - 0.5) * 1.8,
+                    vy: (Math.random() - 0.5) * 1.8
                 });
             });
         }
 
-        // Animation fluide des bulles en arrière-plan
+        // Boucle d'animation fluide liée aux rafraîchissements de l'écran (60/120Hz)
         function updatePhysics() {
             const maxX = window.innerWidth - 80;
             const maxY = window.innerHeight - 80;
@@ -139,12 +141,13 @@
                 item.x += item.vx;
                 item.y += item.vy;
 
-                // Rebond sur les bords
+                // Rebond propre sur les bords avec inversion de vitesse
                 if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                 if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                 if (item.y <= 0) { item.y = 0; item.vy *= -1; }
                 if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
+                // Utilisation de translate3d pour forcer l'accélération matérielle GPU (ultra fluide)
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
@@ -154,7 +157,6 @@
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
-        // Gestion propre de l'ouverture de l'image au clic direct
         function openBubble(bubbleElement) {
             if (bubbleElement.classList.contains('empty')) {
                 activeBubble = bubbleElement;
@@ -214,6 +216,24 @@
                 bubbleElement.remove();
             }
         }
+
+        // --- Gestion robuste du balayage vers le haut (Swipe Up) pour quitter l'image ---
+        let touchStartY = 0;
+
+        fullscreenView.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        fullscreenView.addEventListener('touchend', (e) => {
+            let touchEndY = e.changedTouches[0].clientY;
+            // Si le doigt a bougé vers le haut de plus de 40 pixels, on ferme la vue
+            if (touchStartY - touchEndY > 40) {
+                resetView();
+            }
+        }, { passive: true });
+
+        // Possibilité aussi de cliquer/taper directement sur l'image en plein écran pour la fermer si besoin
+        fullscreenView.onclick = resetView;
 
         function resetView() {
             fullscreenView.style.display = 'none';
