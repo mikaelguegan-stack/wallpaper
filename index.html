@@ -14,6 +14,7 @@
             background-color: #0b0e14;
             font-family: sans-serif;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         #canvas-container {
@@ -126,7 +127,12 @@
                     vy: (Math.random() - 0.5) * 1.2
                 };
 
-                // Utilisation d'un simple événement de clic natif pour une réactivité maximale
+                // Utilisation de touchend pour une réactivité immédiate sur mobile
+                el.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    handleBubbleClick(item);
+                });
+                // Garde aussi le clic pour les tests sur PC
                 el.addEventListener('click', () => {
                     handleBubbleClick(item);
                 });
@@ -143,7 +149,6 @@
                 item.x += item.vx;
                 item.y += item.vy;
 
-                // Rebond sur les bords
                 if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                 if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                 if (item.y <= 0) { item.y = 0; item.vy *= -1; }
@@ -202,6 +207,10 @@
                             vx: (Math.random() - 0.5) * 1.5,
                             vy: (Math.random() - 0.5) * 1.5
                         };
+                        newItem.element.addEventListener('touchend', (e) => {
+                            e.preventDefault();
+                            handleBubbleClick(newItem);
+                        });
                         newItem.element.addEventListener('click', () => {
                             handleBubbleClick(newItem);
                         });
