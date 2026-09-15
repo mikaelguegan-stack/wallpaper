@@ -129,34 +129,35 @@
                     isBeingDragged: false
                 };
 
-                setupDragAndClick(item);
+                setupInteraction(item);
                 bubblesData.push(item);
             });
         }
 
-        function setupDragAndClick(item) {
+        function setupInteraction(item) {
             let el = item.element;
             let startX = 0, startY = 0;
-            let currentPointerId = null;
+            let initialX = 0, initialY = 0;
             let hasMoved = false;
 
             el.addEventListener('pointerdown', (e) => {
-                currentPointerId = e.pointerId;
-                el.setPointerCapture(e.pointerId);
+                item.isBeingDragged = true;
+                hasMoved = false;
                 startX = e.clientX;
                 startY = e.clientY;
-                hasMoved = false;
-                item.isBeingDragged = true;
+                initialX = e.clientX;
+                initialY = e.clientY;
+                el.setPointerCapture(e.pointerId);
             });
 
             el.addEventListener('pointermove', (e) => {
-                if (!item.isBeingDragged || e.pointerId !== currentPointerId) return;
+                if (!item.isBeingDragged) return;
 
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
 
-                // Si on bouge de plus de 5 pixels, on considère que l'utilisateur déplace la bulle
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                // Si le doigt bouge de plus de 4 pixels, on déplace la bulle
+                if (Math.abs(e.clientX - initialX) > 4 || Math.abs(e.clientY - initialY) > 4) {
                     hasMoved = true;
                 }
 
@@ -169,21 +170,21 @@
             });
 
             el.addEventListener('pointerup', (e) => {
-                if (e.pointerId !== currentPointerId) return;
+                if (!item.isBeingDragged) return;
                 item.isBeingDragged = false;
-
-                // Si le doigt n'a pas bougé, c'est un clic ! On ouvre l'image ou la bulle vide
-                if (!hasMoved) {
-                    handleBubbleClick(item);
-                } else {
-                    // Sinon, on donne un petit élan de lancer
-                    item.vx = (Math.random() - 0.5) * 2;
-                    item.vy = (Math.random() - 0.5) * 2;
-                }
 
                 try {
                     el.releasePointerCapture(e.pointerId);
                 } catch (err) {}
+
+                if (!hasMoved) {
+                    // C'est un simple tapotement : on ouvre l'image
+                    handleBubbleClick(item);
+                } else {
+                    // C'est un lancer : on donne de l'impulsion
+                    item.vx = (Math.random() - 0.5) * 2;
+                    item.vy = (Math.random() - 0.5) * 2;
+                }
             });
         }
 
@@ -227,7 +228,7 @@
 
         function triggerAddGlobal() {
             activeBubble = null;
-            document.getElementById('file-input'].click();
+            document.getElementById('file-input').click();
         }
 
         function addNewImage(event) {
@@ -256,7 +257,7 @@
                             vy: (Math.random() - 0.5) * 1.5,
                             isBeingDragged: false
                         };
-                        setupDragAndClick(newItem);
+                        setupInteraction(newItem);
                         bubblesData.push(newItem);
                     }
                 }
