@@ -11,7 +11,6 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            /* Utilisation de ta nouvelle image en fond avec un voile sombre pour garder la lisibilité */
             background: linear-gradient(rgba(7, 9, 14, 0.75), rgba(7, 9, 14, 0.75)), url('background.jpg');
             background-size: cover;
             background-position: center;
@@ -32,7 +31,7 @@
 
         .bubble {
             position: absolute;
-            width: 85px; /* Tu peux modifier la taille ici si besoin */
+            width: 85px;
             height: 85px;
             border-radius: 50%;
             overflow: hidden;
@@ -123,10 +122,16 @@
                 { id: 'folder-collar', type: 'folder', src: 'Collar.png' }
             ],
             folders: {
-                'folder-shibus': [{ type: 'empty' }, { type: 'empty' }],
-                'folder-ryoshi': [{ type: 'empty' }],
-                'folder-oscar': [{ type: 'empty' }, { type: 'empty' }],
-                'folder-collar': [{ type: 'empty' }]
+                'folder-shibus': [],
+                'folder-ryoshi': [],
+                'folder-oscar': [
+                    { 
+                        type: 'link', 
+                        src: 'oscar-etherscan.png', 
+                        url: 'https://etherscan.io/token/0xebb66a88cedd12bfe3a289df6dfee377f2963f12' 
+                    }
+                ],
+                'folder-collar': []
             }
         };
 
@@ -146,12 +151,13 @@
                 if (item.type === 'empty') {
                     el.classList.add('empty');
                     el.innerHTML = '+';
-                    // Les emplacements vides affichent une alerte ou peuvent être personnalisés si besoin
-                    el.onclick = () => alert("Dossier vide pour le moment.");
+                    el.onclick = () => alert("Emplacement vide.");
                 } else {
                     el.innerHTML = `<img src="${item.src}" alt="" onerror="this.onerror=null; this.parentNode.innerHTML='⚠️';">`;
                     if (item.type === 'folder') {
                         el.onclick = () => enterFolder(item.id);
+                    } else if (item.type === 'link') {
+                        el.onclick = () => window.open(item.url, '_blank');
                     } else {
                         el.onclick = () => openImageFullscreen(item.src);
                     }
