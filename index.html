@@ -44,6 +44,7 @@
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
             will-change: transform;
+            touch-action: none; /* Nécessaire pour capturer le mouvement sans scroller la page */
         }
 
         .bubble img {
@@ -100,9 +101,9 @@
 <body>
 
     <div id="canvas-container">
-        <button class="bubble" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></button>
-        <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
-        <button class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</button>
+        <button class="bubble" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></button>
+        <button class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</button>
+        <button class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</button>
     </div>
 
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
@@ -122,32 +123,97 @@
                 const x = 50 + (index * 110) % (window.innerWidth - 100);
                 const y = 100 + Math.floor(index / 3) * 110;
                 
-                bubblesData.push({
+                const item = {
                     element: el,
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 1.8,
-                    vy: (Math.random() - 0.5) * 1.8
-                });
+                    vy: (Math.random() - 0.5) * 1.8,
+                    isBeingDragged: false
+                };
+
+                setupInteractiveBubble(item);
+                bubblesData.push(item);
             });
         }
 
-        // Boucle d'animation fluide liée aux rafraîchissements de l'écran (60/120Hz)
+        // Permet à la fois de lancer (si glissé) et d'ouvrir (si simple tap)
+        function setupInteractiveBubble(item) {
+            let el = item.element;
+            let startX = 0, startY = 0;
+            let hasMoved = false;
+
+            el.addEventListener('pointerdown', (e) => {
+                startX = e.clientX;
+                startY = e.clientY;
+                hasMoved = false;
+                item.isBeingDragged = true;
+                item.vx = 0;
+                item.vy = 0;
+                el.setPointerCapture(e.pointerId);
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (!item.isBeingDragged) return;
+
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
+
+                // Si on bouge de plus de 5 pixels, on considère que c'est un déplacement/lancer
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                    hasMoved = true;
+                }
+
+                item.x += dx;
+                item.y += dy;
+                startX = e.clientX;
+                startY = e.clientY;
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (!item.isBeingDragged) return;
+                item.isBeingDragged = false;
+
+                try {
+                    el.releasePointerCapture(e.pointerId);
+                } catch (err) {}
+
+                if (!hasMoved) {
+                    // Si on n'a pas bougé : ouverture de l'image ou de la boîte d'ajout
+                    openBubble(item);
+                } else {
+                    // Si on a bougé : on donne de la vitesse pour lancer la bulle
+                    item.vx = (Math.random() - 0.5) * 6;
+                    item.vy = (Math.random() - 0.5) * 6;
+                }
+            });
+        }
+
+        // Boucle d'animation fluide liée au GPU
         function updatePhysics() {
             const maxX = window.innerWidth - 80;
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                item.x += item.vx;
-                item.y += item.vy;
+                if (!item.isBeingDragged) {
+                    item.x += item.vx;
+                    item.y += item.vy;
 
-                // Rebond propre sur les bords avec inversion de vitesse
-                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                    // Légers frottements pour stabiliser un peu la vitesse
+                    item.vx *= 0.99;
+                    item.vy *= 0.99;
 
-                // Utilisation de translate3d pour forcer l'accélération matérielle GPU (ultra fluide)
+                    // Relance automatique si la bulle ralentit trop
+                    if (Math.abs(item.vx) < 0.4) item.vx = (Math.random() - 0.5) * 2;
+                    if (Math.abs(item.vy) < 0.4) item.vy = (Math.random() - 0.5) * 2;
+
+                    // Rebond sur les bords
+                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                }
+
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
@@ -157,12 +223,12 @@
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
-        function openBubble(bubbleElement) {
-            if (bubbleElement.classList.contains('empty')) {
-                activeBubble = bubbleElement;
+        function openBubble(item) {
+            if (item.element.classList.contains('empty')) {
+                activeBubble = item.element;
                 document.getElementById('file-input').click();
             } else {
-                const img = bubbleElement.querySelector('img');
+                const img = item.element.querySelector('img');
                 if (img) {
                     fullscreenView.style.backgroundImage = `url(${img.src})`;
                     fullscreenView.style.display = 'block';
@@ -191,17 +257,19 @@
                         const newBtn = document.createElement('button');
                         newBtn.className = 'bubble';
                         newBtn.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newBtn.onclick = function() { openBubble(newBtn); };
                         newBtn.oncontextmenu = function(ev) { deleteBubble(ev, newBtn); };
                         container.appendChild(newBtn);
 
-                        bubblesData.push({
+                        const newItem = {
                             element: newBtn,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
                             vx: (Math.random() - 0.5) * 2,
-                            vy: (Math.random() - 0.5) * 2
-                        });
+                            vy: (Math.random() - 0.5) * 2,
+                            isBeingDragged: false
+                        };
+                        setupInteractiveBubble(newItem);
+                        bubblesData.push(newItem);
                     }
                 }
                 reader.readAsDataURL(file);
@@ -217,7 +285,7 @@
             }
         }
 
-        // --- Gestion robuste du balayage vers le haut (Swipe Up) pour quitter l'image ---
+        // --- Gestion du balayage vers le haut (Swipe Up) pour quitter l'image ---
         let touchStartY = 0;
 
         fullscreenView.addEventListener('touchstart', (e) => {
@@ -226,13 +294,11 @@
 
         fullscreenView.addEventListener('touchend', (e) => {
             let touchEndY = e.changedTouches[0].clientY;
-            // Si le doigt a bougé vers le haut de plus de 40 pixels, on ferme la vue
             if (touchStartY - touchEndY > 40) {
                 resetView();
             }
         }, { passive: true });
 
-        // Possibilité aussi de cliquer/taper directement sur l'image en plein écran pour la fermer si besoin
         fullscreenView.onclick = resetView;
 
         function resetView() {
