@@ -41,7 +41,6 @@
             align-items: center;
             justify-content: center;
             will-change: transform;
-            touch-action: none;
         }
 
         .bubble img {
@@ -124,66 +123,64 @@
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 1.2,
-                    vy: (Math.random() - 0.5) * 1.2,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
                     isBeingDragged: false
                 };
 
-                setupTouchAndDrag(item);
+                setupTouchControls(item);
                 bubblesData.push(item);
             });
         }
 
-        function setupTouchAndDrag(item) {
+        function setupTouchControls(item) {
             let el = item.element;
             let startX = 0, startY = 0;
-            let initialX = 0, initialY = 0;
             let hasMoved = false;
 
-            el.addEventListener('pointerdown', (e) => {
-                startX = e.clientX;
-                startY = e.clientY;
-                initialX = e.clientX;
-                initialY = e.clientY;
+            el.addEventListener('touchstart', (e) => {
+                let touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
                 hasMoved = false;
                 item.isBeingDragged = true;
-                el.setPointerCapture(e.pointerId);
-            });
+                item.vx = 0;
+                item.vy = 0;
+            }, { passive: true });
 
-            el.addEventListener('pointermove', (e) => {
+            el.addEventListener('touchmove', (e) => {
                 if (!item.isBeingDragged) return;
+                let touch = e.touches[0];
+                let dx = touch.clientX - startX;
+                let dy = touch.clientY - startY;
 
-                let dx = e.clientX - startX;
-                let dy = e.clientY - startY;
-
-                if (Math.abs(e.clientX - initialX) > 6 || Math.abs(e.clientY - initialY) > 6) {
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                     hasMoved = true;
                 }
 
-                if (hasMoved) {
-                    item.x += dx;
-                    item.y += dy;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                }
-            });
+                item.x += dx;
+                item.y += dy;
+                startX = touch.clientX;
+                startY = touch.clientY;
+            }, { passive: true });
 
-            el.addEventListener('pointerup', (e) => {
+            el.addEventListener('touchend', (e) => {
                 if (!item.isBeingDragged) return;
                 item.isBeingDragged = false;
 
-                try {
-                    el.releasePointerCapture(e.pointerId);
-                } catch (err) {}
-
                 if (!hasMoved) {
-                    // Si on n'a pas bougé, c'est un clic direct !
+                    // Tapotement simple : ouvre l'image ou l'ajout
                     handleBubbleClick(item);
                 } else {
-                    // Sinon, petit élan de lancer
-                    item.vx = (Math.random() - 0.5) * 2;
-                    item.vy = (Math.random() - 0.5) * 2;
+                    // Lancer : donne une impulsion selon la vitesse de lâcher
+                    item.vx = (Math.random() - 0.5) * 4;
+                    item.vy = (Math.random() - 0.5) * 4;
                 }
+            });
+
+            // Pour que ça fonctionne aussi avec la souris sur PC
+            el.addEventListener('click', () => {
+                if (!hasMoved) handleBubbleClick(item);
             });
         }
 
@@ -196,6 +193,15 @@
                     item.x += item.vx;
                     item.y += item.vy;
 
+                    // Ralentissement progressif (frottement)
+                    item.vx *= 0.98;
+                    item.vy *= 0.98;
+
+                    // Relance automatique si la bulle s'arrête trop
+                    if (Math.abs(item.vx) < 0.3) item.vx = (Math.random() - 0.5) * 1.5;
+                    if (Math.abs(item.vy) < 0.3) item.vy = (Math.random() - 0.5) * 1.5;
+
+                    // Rebond sur les bords de l'écran
                     if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                     if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                     if (item.y <= 0) { item.y = 0; item.vy *= -1; }
@@ -252,11 +258,11 @@
                             element: newDiv,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
-                            vx: (Math.random() - 0.5) * 1.5,
-                            vy: (Math.random() - 0.5) * 1.5,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: (Math.random() - 0.5) * 2,
                             isBeingDragged: false
                         };
-                        setupTouchAndDrag(newItem);
+                        setupTouchControls(newItem);
                         bubblesData.push(newItem);
                     }
                 }
