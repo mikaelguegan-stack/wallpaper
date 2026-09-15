@@ -11,8 +11,8 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0b0e14;
-            font-family: sans-serif;
+            background: radial-gradient(circle at center, #121824 0%, #07090e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -29,19 +29,25 @@
 
         .bubble {
             position: absolute;
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             border-radius: 50%;
             overflow: hidden;
-            border: 3px solid #00ffcc;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-            background: #1a2233;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), inset 0 0 10px rgba(0, 255, 204, 0.2);
+            background: #151c28;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
             will-change: transform;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        .bubble:active {
+            transform: scale(0.92) !important;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.6);
         }
 
         .bubble img {
@@ -52,27 +58,33 @@
         }
 
         .bubble.empty {
-            border: 3px dashed #666;
-            background: rgba(26, 34, 51, 0.5);
-            color: #888;
-            font-size: 24px;
-            font-weight: bold;
+            border: 2px dashed #4a5568;
+            background: rgba(21, 28, 40, 0.6);
+            color: #00ffcc;
+            font-size: 32px;
+            font-weight: 300;
         }
 
         #add-btn {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #00ffcc;
-            color: #0b0e14;
+            bottom: 35px;
+            right: 35px;
+            background: linear-gradient(135deg, #00ffcc 0%, #00b388 100%);
+            color: #07090e;
             border: none;
-            border-radius: 30px;
-            padding: 12px 24px;
-            font-weight: bold;
-            font-size: 16px;
+            border-radius: 50px;
+            padding: 14px 28px;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.5px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 255, 204, 0.4);
             z-index: 10;
+            transition: transform 0.2s ease;
+        }
+
+        #add-btn:active {
+            transform: scale(0.95);
         }
 
         #file-input {
@@ -88,7 +100,7 @@
             background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
-            background-color: #0b0e14;
+            background-color: #07090e;
             display: none;
             z-index: 100;
         }
@@ -102,7 +114,7 @@
         <div class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</div>
     </div>
 
-    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
+    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter</button>
     <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
     <div id="fullscreen-view"></div>
@@ -116,35 +128,32 @@
         function initBubbles() {
             const elements = document.querySelectorAll('.bubble');
             elements.forEach((el, index) => {
-                const x = 50 + (index * 110) % (window.innerWidth - 100);
-                const y = 100 + Math.floor(index / 3) * 110;
+                const x = 50 + (index * 115) % (window.innerWidth - 100);
+                const y = 120 + Math.floor(index / 3) * 115;
                 
                 bubblesData.push({
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 2.5,
-                    vy: (Math.random() - 0.5) * 2.5
+                    vx: (Math.random() - 0.5) * 2.2,
+                    vy: (Math.random() - 0.5) * 2.2
                 });
             });
         }
 
-        // Animation fluide continue des bulles en arrière-plan
         function updatePhysics() {
-            const maxX = window.innerWidth - 80;
-            const maxY = window.innerHeight - 80;
+            const maxX = window.innerWidth - 85;
+            const maxY = window.innerHeight - 85;
 
             bubblesData.forEach(item => {
                 item.x += item.vx;
                 item.y += item.vy;
 
-                // Rebond automatique sur les bords de l'écran
                 if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                 if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                 if (item.y <= 0) { item.y = 0; item.vy *= -1; }
                 if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
-                // Application du mouvement via l'accélération matérielle du GPU
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
@@ -196,8 +205,8 @@
                             element: newDiv,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
-                            vx: (Math.random() - 0.5) * 2.5,
-                            vy: (Math.random() - 0.5) * 2.5
+                            vx: (Math.random() - 0.5) * 2.2,
+                            vy: (Math.random() - 0.5) * 2.2
                         });
                     }
                 }
@@ -214,7 +223,6 @@
             }
         }
 
-        // --- Gestion propre pour quitter l'image en plein écran ---
         let touchStartY = 0;
 
         fullscreenView.addEventListener('touchstart', (e) => {
