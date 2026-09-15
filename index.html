@@ -41,6 +41,7 @@
             align-items: center;
             justify-content: center;
             will-change: transform;
+            touch-action: none; /* Permet la capture propre du pointeur */
         }
 
         .bubble img {
@@ -128,59 +129,56 @@
                     isBeingDragged: false
                 };
 
-                setupTouchControls(item);
+                setupPointerControls(item);
                 bubblesData.push(item);
             });
         }
 
-        function setupTouchControls(item) {
+        function setupPointerControls(item) {
             let el = item.element;
             let startX = 0, startY = 0;
-            let hasMoved = false;
+            let totalMoved = 0;
 
-            el.addEventListener('touchstart', (e) => {
-                let touch = e.touches[0];
-                startX = touch.clientX;
-                startY = touch.clientY;
-                hasMoved = false;
+            el.addEventListener('pointerdown', (e) => {
+                startX = e.clientX;
+                startY = e.clientY;
+                totalMoved = 0;
                 item.isBeingDragged = true;
                 item.vx = 0;
                 item.vy = 0;
-            }, { passive: true });
+                el.setPointerCapture(e.pointerId);
+            });
 
-            el.addEventListener('touchmove', (e) => {
+            el.addEventListener('pointermove', (e) => {
                 if (!item.isBeingDragged) return;
-                let touch = e.touches[0];
-                let dx = touch.clientX - startX;
-                let dy = touch.clientY - startY;
+                
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
 
-                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-                    hasMoved = true;
-                }
+                totalMoved += Math.abs(dx) + Math.abs(dy);
 
                 item.x += dx;
                 item.y += dy;
-                startX = touch.clientX;
-                startY = touch.clientY;
-            }, { passive: true });
+                startX = e.clientX;
+                startY = e.clientY;
+            });
 
-            el.addEventListener('touchend', (e) => {
+            el.addEventListener('pointerup', (e) => {
                 if (!item.isBeingDragged) return;
                 item.isBeingDragged = false;
 
-                if (!hasMoved) {
-                    // Tapotement direct : ouvre l'image en plein écran instantanément
+                try {
+                    el.releasePointerCapture(e.pointerId);
+                } catch (err) {}
+
+                // Si on a très peu bougé (moins de 8 pixels), c'est considéré comme un clic/tap direct
+                if (totalMoved < 8) {
                     handleBubbleClick(item);
                 } else {
-                    // Lancer de la bulle
+                    // Sinon, c'était un lancer, on donne de l'impulsion
                     item.vx = (Math.random() - 0.5) * 4;
                     item.vy = (Math.random() - 0.5) * 4;
                 }
-            });
-
-            // Fallback pour les tests sur PC avec la souris
-            el.addEventListener('click', (e) => {
-                handleBubbleClick(item);
             });
         }
 
@@ -193,7 +191,7 @@
                     item.x += item.vx;
                     item.y += item.vy;
 
-                    // Frottements et relance automatique pour garder le mouvement vivant
+                    // Frottement et maintien du mouvement
                     item.vx *= 0.98;
                     item.vy *= 0.98;
 
@@ -260,7 +258,7 @@
                             vy: (Math.random() - 0.5) * 2,
                             isBeingDragged: false
                         };
-                        setupTouchControls(newItem);
+                        setupPointerControls(newItem);
                         bubblesData.push(newItem);
                     }
                 }
