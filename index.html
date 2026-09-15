@@ -42,7 +42,6 @@
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
             will-change: transform;
-            touch-action: none;
         }
 
         .bubble img {
@@ -98,9 +97,9 @@
 <body>
 
     <div id="canvas-container">
-        <div class="bubble" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
-        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
+        <div class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</div>
     </div>
 
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
@@ -120,106 +119,32 @@
                 const x = 50 + (index * 110) % (window.innerWidth - 100);
                 const y = 100 + Math.floor(index / 3) * 110;
                 
-                const item = {
+                bubblesData.push({
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 1.5,
-                    vy: (Math.random() - 0.5) * 1.5,
-                    isBeingDragged: false
-                };
-
-                setupTouchHandlers(item);
-                bubblesData.push(item);
+                    vx: (Math.random() - 0.5) * 2.5,
+                    vy: (Math.random() - 0.5) * 2.5
+                });
             });
         }
 
-        function setupTouchHandlers(item) {
-            let el = item.element;
-            let startX = 0, startY = 0;
-            let lastTouchX = 0, lastTouchY = 0;
-            let hasMoved = false;
-
-            el.addEventListener('touchstart', (e) => {
-                let touch = e.touches[0];
-                startX = touch.clientX;
-                startY = touch.clientY;
-                lastTouchX = touch.clientX;
-                lastTouchY = touch.clientY;
-                hasMoved = false;
-                item.isBeingDragged = true;
-                item.vx = 0;
-                item.vy = 0;
-            }, { passive: true });
-
-            el.addEventListener('touchmove', (e) => {
-                if (!item.isBeingDragged) return;
-                let touch = e.touches[0];
-                let currentX = touch.clientX;
-                let currentY = touch.clientY;
-
-                let dx = currentX - startX;
-                let dy = currentY - startY;
-
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                    hasMoved = true;
-                }
-
-                // Calcule la vitesse instantanée pour le lancer au moment du lâcher
-                item.vx = currentX - lastTouchX;
-                item.vy = currentY - lastTouchY;
-
-                item.x += dx;
-                item.y += dy;
-
-                startX = currentX;
-                startY = currentY;
-                lastTouchX = currentX;
-                lastTouchY = currentY;
-            }, { passive: true });
-
-            el.addEventListener('touchend', (e) => {
-                if (!item.isBeingDragged) return;
-                item.isBeingDragged = false;
-
-                if (!hasMoved) {
-                    // Tapotement simple -> Ouvre l'image ou la boîte d'ajout
-                    openBubble(item);
-                } else {
-                    // Lâcher avec mouvement -> Conserve l'élan du lancer de doigt
-                    // On bride la vitesse max pour éviter qu'elle sorte de l'écran trop violemment
-                    item.vx = Math.max(Math.min(item.vx * 1.2, 15), -15);
-                    item.vy = Math.max(Math.min(item.vy * 1.2, 15), -15);
-                }
-            });
-        }
-
+        // Animation fluide continue des bulles en arrière-plan
         function updatePhysics() {
             const maxX = window.innerWidth - 80;
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                if (!item.isBeingDragged) {
-                    item.x += item.vx;
-                    item.y += item.vy;
+                item.x += item.vx;
+                item.y += item.vy;
 
-                    // Ralentissement progressif (frottement de l'air)
-                    item.vx *= 0.96;
-                    item.vy *= 0.96;
+                // Rebond automatique sur les bords de l'écran
+                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
-                    // Relance automatique douce si la bulle s'arrête complètement
-                    if (Math.abs(item.vx) < 0.2 && Math.abs(item.vy) < 0.2) {
-                        item.vx = (Math.random() - 0.5) * 1.5;
-                        item.vy = (Math.random() - 0.5) * 1.5;
-                    }
-
-                    // Rebond sur les bords de l'écran
-                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
-                }
-
+                // Application du mouvement via l'accélération matérielle du GPU
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
@@ -229,12 +154,12 @@
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
-        function openBubble(item) {
-            if (item.element.classList.contains('empty')) {
-                activeBubble = item.element;
+        function openBubble(bubbleElement) {
+            if (bubbleElement.classList.contains('empty')) {
+                activeBubble = bubbleElement;
                 document.getElementById('file-input').click();
             } else {
-                const img = item.element.querySelector('img');
+                const img = bubbleElement.querySelector('img');
                 if (img) {
                     fullscreenView.style.backgroundImage = `url(${img.src})`;
                     fullscreenView.style.display = 'block';
@@ -263,19 +188,17 @@
                         const newDiv = document.createElement('div');
                         newDiv.className = 'bubble';
                         newDiv.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newDiv.oncontextmenu = (ev) => deleteBubble(ev, newDiv);
+                        newDiv.onclick = function() { openBubble(newDiv); };
+                        newDiv.oncontextmenu = function(ev) { deleteBubble(ev, newDiv); };
                         container.appendChild(newDiv);
 
-                        const newItem = {
+                        bubblesData.push({
                             element: newDiv,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
-                            vx: (Math.random() - 0.5) * 2,
-                            vy: (Math.random() - 0.5) * 2,
-                            isBeingDragged: false
-                        };
-                        setupTouchHandlers(newItem);
-                        bubblesData.push(newItem);
+                            vx: (Math.random() - 0.5) * 2.5,
+                            vy: (Math.random() - 0.5) * 2.5
+                        });
                     }
                 }
                 reader.readAsDataURL(file);
@@ -291,7 +214,7 @@
             }
         }
 
-        // --- Gestion du balayage vers le haut (Swipe Up) pour quitter l'image ---
+        // --- Gestion propre pour quitter l'image en plein écran ---
         let touchStartY = 0;
 
         fullscreenView.addEventListener('touchstart', (e) => {
