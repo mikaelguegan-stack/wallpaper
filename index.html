@@ -124,8 +124,8 @@
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 1.8,
-                    vy: (Math.random() - 0.5) * 1.8,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
                     isBeingDragged: false
                 };
 
@@ -137,12 +137,15 @@
         function setupTouchHandlers(item) {
             let el = item.element;
             let startX = 0, startY = 0;
+            let lastTouchX = 0, lastTouchY = 0;
             let hasMoved = false;
 
             el.addEventListener('touchstart', (e) => {
                 let touch = e.touches[0];
                 startX = touch.clientX;
                 startY = touch.clientY;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
                 hasMoved = false;
                 item.isBeingDragged = true;
                 item.vx = 0;
@@ -152,17 +155,27 @@
             el.addEventListener('touchmove', (e) => {
                 if (!item.isBeingDragged) return;
                 let touch = e.touches[0];
-                let dx = touch.clientX - startX;
-                let dy = touch.clientY - startY;
+                let currentX = touch.clientX;
+                let currentY = touch.clientY;
 
-                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                let dx = currentX - startX;
+                let dy = currentY - startY;
+
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                     hasMoved = true;
                 }
 
+                // Calcule la vitesse instantanée pour le lancer au moment du lâcher
+                item.vx = currentX - lastTouchX;
+                item.vy = currentY - lastTouchY;
+
                 item.x += dx;
                 item.y += dy;
-                startX = touch.clientX;
-                startY = touch.clientY;
+
+                startX = currentX;
+                startY = currentY;
+                lastTouchX = currentX;
+                lastTouchY = currentY;
             }, { passive: true });
 
             el.addEventListener('touchend', (e) => {
@@ -170,18 +183,14 @@
                 item.isBeingDragged = false;
 
                 if (!hasMoved) {
-                    // Tapotement direct : ouvre l'image ou la sélection
+                    // Tapotement simple -> Ouvre l'image ou la boîte d'ajout
                     openBubble(item);
                 } else {
-                    // Lancer de la bulle avec une impulsion aléatoire
-                    item.vx = (Math.random() - 0.5) * 6;
-                    item.vy = (Math.random() - 0.5) * 6;
+                    // Lâcher avec mouvement -> Conserve l'élan du lancer de doigt
+                    // On bride la vitesse max pour éviter qu'elle sorte de l'écran trop violemment
+                    item.vx = Math.max(Math.min(item.vx * 1.2, 15), -15);
+                    item.vy = Math.max(Math.min(item.vy * 1.2, 15), -15);
                 }
-            });
-
-            // Fallback pour les clics souris sur PC
-            el.addEventListener('click', () => {
-                if (!hasMoved) openBubble(item);
             });
         }
 
@@ -194,12 +203,15 @@
                     item.x += item.vx;
                     item.y += item.vy;
 
-                    // Frottements pour stabiliser la vitesse
-                    item.vx *= 0.99;
-                    item.vy *= 0.99;
+                    // Ralentissement progressif (frottement de l'air)
+                    item.vx *= 0.96;
+                    item.vy *= 0.96;
 
-                    if (Math.abs(item.vx) < 0.4) item.vx = (Math.random() - 0.5) * 2;
-                    if (Math.abs(item.vy) < 0.4) item.vy = (Math.random() - 0.5) * 2;
+                    // Relance automatique douce si la bulle s'arrête complètement
+                    if (Math.abs(item.vx) < 0.2 && Math.abs(item.vy) < 0.2) {
+                        item.vx = (Math.random() - 0.5) * 1.5;
+                        item.vy = (Math.random() - 0.5) * 1.5;
+                    }
 
                     // Rebond sur les bords de l'écran
                     if (item.x <= 0) { item.x = 0; item.vx *= -1; }
