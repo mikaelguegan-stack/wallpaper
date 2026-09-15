@@ -17,7 +17,9 @@
         }
 
         #canvas-container {
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
@@ -33,15 +35,15 @@
             border: 3px solid #00ffcc;
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: box-shadow 0.2s ease;
             background: #1a2233;
             display: flex;
             align-items: center;
             justify-content: center;
+            will-change: transform;
         }
 
         .bubble:hover {
-            transform: scale(1.15);
             box-shadow: 0 0 25px rgba(0, 255, 204, 0.8);
         }
 
@@ -100,10 +102,9 @@
 <body>
 
     <div id="canvas-container">
-        <!-- Bulles initiales injectées avec des positions et vitesses aléatoires gérées par le JS -->
-        <div class="bubble" data-x="100" data-y="150" data-vx="0.8" data-vy="0.5" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble empty" data-x="250" data-y="300" data-vx="-0.6" data-vy="0.7" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
-        <div class="bubble empty" data-x="180" data-y="450" data-vx="0.5" data-vy="-0.8" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
+        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
     </div>
 
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
@@ -116,19 +117,21 @@
         const fullscreenView = document.getElementById('fullscreen-view');
         let touchStartY = 0;
         let activeBubble = null;
-
-        // Animation de déplacement des bulles façon Bubblemap
         const bubblesData = [];
 
         function initBubbles() {
             const elements = document.querySelectorAll('.bubble');
-            elements.forEach(el => {
+            elements.forEach((el, index) => {
+                // Position initiale éparpillée sur l'écran
+                const x = 50 + (index * 120) % (window.innerWidth - 100);
+                const y = 100 + Math.floor(index / 3) * 120;
+                
                 bubblesData.push({
                     element: el,
-                    x: parseFloat(el.getAttribute('data-x')) || Math.random() * (window.innerWidth - 100),
-                    y: parseFloat(el.getAttribute('data-y')) || Math.random() * (window.innerHeight - 100),
-                    vx: parseFloat(el.getAttribute('data-vx')) || (Math.random() - 0.5) * 1.5,
-                    vy: parseFloat(el.getAttribute('data-vy')) || (Math.random() - 0.5) * 1.5
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 1.2,
+                    vy: (Math.random() - 0.5) * 1.2
                 });
             });
         }
@@ -141,22 +144,20 @@
                 item.x += item.vx;
                 item.y += item.vy;
 
-                // Rebond sur les bords de l'écran
-                if (item.x <= 0 || item.x >= maxX) {
-                    item.vx *= -1;
-                    item.x = Math.max(0, Math.min(item.x, maxX));
-                }
-                if (item.y <= 0 || item.y >= maxY) {
-                    item.vy *= -1;
-                    item.y = Math.max(0, Math.min(item.y, maxY));
-                }
+                // Rebond sur les bords
+                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
-                item.element.style.transform = `translate(${item.x}px, ${item.y}px)`;
+                // Application du mouvement fluide via transform
+                item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
             requestAnimationFrame(updatePhysics);
         }
 
+        // Lancement de l'animation
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
@@ -202,8 +203,8 @@
                             element: newDiv,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
-                            vx: (Math.random() - 0.5) * 2,
-                            vy: (Math.random() - 0.5) * 2
+                            vx: (Math.random() - 0.5) * 1.5,
+                            vy: (Math.random() - 0.5) * 1.5
                         });
                     }
                 }
@@ -222,7 +223,6 @@
             }
         }
 
-        // Swipe vers le haut pour fermer le plein écran
         fullscreenView.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
         });
