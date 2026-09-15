@@ -14,7 +14,6 @@
             background-color: #0b0e14;
             font-family: sans-serif;
             user-select: none;
-            touch-action: none;
         }
 
         #canvas-container {
@@ -113,11 +112,6 @@
         let activeBubble = null;
         const bubblesData = [];
 
-        let draggedItem = null;
-        let offsetX = 0, offsetY = 0;
-        let hasMoved = false;
-        let startTouchX = 0, startTouchY = 0;
-
         function initBubbles() {
             const elements = document.querySelectorAll('.bubble');
             elements.forEach((el, index) => {
@@ -129,53 +123,15 @@
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 1.2,
-                    vy: (Math.random() - 0.5) * 1.2,
-                    isBeingDragged: false
+                    vy: (Math.random() - 0.5) * 1.2
                 };
 
-                setupTouchEvents(item);
+                // Utilisation d'un simple événement de clic natif pour une réactivité maximale
+                el.addEventListener('click', () => {
+                    handleBubbleClick(item);
+                });
+
                 bubblesData.push(item);
-            });
-        }
-
-        function setupTouchEvents(item) {
-            let el = item.element;
-
-            el.addEventListener('pointerdown', (e) => {
-                hasMoved = false;
-                draggedItem = item;
-                startTouchX = e.clientX;
-                startTouchY = e.clientY;
-                offsetX = e.clientX - item.x;
-                offsetY = e.clientY - item.y;
-                item.isBeingDragged = true;
-                el.setPointerCapture(e.pointerId);
-            });
-
-            el.addEventListener('pointermove', (e) => {
-                if (draggedItem === item) {
-                    let dx = e.clientX - startTouchX;
-                    let dy = e.clientY - startTouchY;
-                    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-                        hasMoved = true; // On a bougé, ce n'est plus un simple clic
-                    }
-                    item.x = e.clientX - offsetX;
-                    item.y = e.clientY - offsetY;
-                }
-            });
-
-            el.addEventListener('pointerup', (e) => {
-                if (draggedItem === item) {
-                    item.isBeingDragged = false;
-                    item.vx = (e.clientX - startTouchX) * 0.1;
-                    item.vy = (e.clientY - startTouchY) * 0.1;
-                    
-                    // Si on n'a pas bougé le doigt, c'est un clic validé !
-                    if (!hasMoved) {
-                        handleBubbleClick(item);
-                    }
-                    draggedItem = null;
-                }
             });
         }
 
@@ -184,21 +140,14 @@
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                if (!item.isBeingDragged) {
-                    item.x += item.vx;
-                    item.y += item.vy;
+                item.x += item.vx;
+                item.y += item.vy;
 
-                    item.vx *= 0.99;
-                    item.vy *= 0.99;
-
-                    if (Math.abs(item.vx) < 0.2) item.vx = (Math.random() - 0.5) * 1.2;
-                    if (Math.abs(item.vy) < 0.2) item.vy = (Math.random() - 0.5) * 1.2;
-
-                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
-                }
+                // Rebond sur les bords
+                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
@@ -251,10 +200,11 @@
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
                             vx: (Math.random() - 0.5) * 1.5,
-                            vy: (Math.random() - 0.5) * 1.5,
-                            isBeingDragged: false
+                            vy: (Math.random() - 0.5) * 1.5
                         };
-                        setupTouchEvents(newItem);
+                        newItem.element.addEventListener('click', () => {
+                            handleBubbleClick(newItem);
+                        });
                         bubblesData.push(newItem);
                     }
                 }
