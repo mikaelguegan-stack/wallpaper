@@ -11,8 +11,8 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0b0e14;
-            font-family: sans-serif;
+            background: radial-gradient(circle at center, #121824 0%, #07090e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -29,19 +29,25 @@
 
         .bubble {
             position: absolute;
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             border-radius: 50%;
             overflow: hidden;
-            border: 3px solid #00ffcc;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-            background: #1a2233;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), inset 0 0 10px rgba(0, 255, 204, 0.2);
+            background: #151c28;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
             will-change: transform;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        .bubble:active {
+            transform: scale(0.92) !important;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.6);
         }
 
         .bubble img {
@@ -52,27 +58,50 @@
         }
 
         .bubble.empty {
-            border: 3px dashed #666;
-            background: rgba(26, 34, 51, 0.5);
-            color: #888;
-            font-size: 24px;
-            font-weight: bold;
+            border: 2px dashed #4a5568;
+            background: rgba(21, 28, 40, 0.6);
+            color: #00ffcc;
+            font-size: 32px;
+            font-weight: 300;
+        }
+
+        #back-btn {
+            position: fixed;
+            top: 25px;
+            left: 25px;
+            background: rgba(21, 28, 40, 0.8);
+            border: 2px solid #00ffcc;
+            color: #00ffcc;
+            border-radius: 30px;
+            padding: 8px 18px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
+            z-index: 20;
+            display: none;
         }
 
         #add-btn {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #00ffcc;
-            color: #0b0e14;
+            bottom: 35px;
+            right: 35px;
+            background: linear-gradient(135deg, #00ffcc 0%, #00b388 100%);
+            color: #07090e;
             border: none;
-            border-radius: 30px;
-            padding: 12px 24px;
-            font-weight: bold;
-            font-size: 16px;
+            border-radius: 50px;
+            padding: 14px 28px;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.5px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 255, 204, 0.4);
             z-index: 10;
+            transition: transform 0.2s ease;
+        }
+
+        #add-btn:active {
+            transform: scale(0.95);
         }
 
         #file-input {
@@ -88,7 +117,7 @@
             background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
-            background-color: #0b0e14;
+            background-color: #07090e;
             display: none;
             z-index: 100;
         }
@@ -96,13 +125,9 @@
 </head>
 <body>
 
-    <div id="canvas-container">
-        <div class="bubble" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</div>
-        <div class="bubble empty" onclick="openBubble(this)" oncontextmenu="deleteBubble(event, this)">+</div>
-    </div>
-
-    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
+    <button id="back-btn" onclick="goBackToRoot()">← Retour</button>
+    <div id="canvas-container"></div>
+    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter</button>
     <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
     <div id="fullscreen-view"></div>
@@ -110,66 +135,122 @@
     <script>
         const container = document.getElementById('canvas-container');
         const fullscreenView = document.getElementById('fullscreen-view');
-        let activeBubble = null;
-        const bubblesData = [];
+        const backBtn = document.getElementById('back-btn');
+        
+        let currentParentId = null; // null = Racine, sinon ID du dossier parent
+        let activeBubbleForUpload = null;
+        let animationFrameId = null;
 
-        function initBubbles() {
-            const elements = document.querySelectorAll('.bubble');
-            elements.forEach((el, index) => {
-                const x = 50 + (index * 110) % (window.innerWidth - 100);
-                const y = 100 + Math.floor(index / 3) * 110;
-                
-                bubblesData.push({
+        // Structure de données hiérarchique avec tes 4 images principales
+        const appData = {
+            root: [
+                { id: 'cat-samurai', type: 'folder', src: 'https://i.ibb.co/68v1w9W/Screenshot-20260915-151335.png' }, // Remplacer par l'URL/chemin de ton image 1
+                { id: 'ryoshi', type: 'folder', src: 'https://i.ibb.co/3s6K91R/Screenshot-20260915-151320.png' },      // Image 2
+                { id: 'oscar-token', type: 'folder', src: 'https://i.ibb.co/5G2720x/Screenshot-20260915-151218.png' },  // Image 3
+                { id: 'collar-dog', type: 'folder', src: 'https://i.ibb.co/9v35V2h/Screenshot-20260915-151233.png' }   // Image 4
+            ],
+            folders: {
+                'cat-samurai': [
+                    { type: 'empty' },
+                    { type: 'empty' }
+                ],
+                'ryoshi': [
+                    { type: 'empty' }
+                ],
+                'oscar-token': [
+                    { type: 'empty' },
+                    { type: 'empty' }
+                ],
+                'collar-dog': [
+                    { type: 'empty' }
+                ]
+            }
+        };
+
+        let activeBubblesPhysics = [];
+
+        function renderScene() {
+            container.innerHTML = '';
+            activeBubblesPhysics = [];
+
+            let itemsToDisplay = [];
+            if (currentParentId === null) {
+                itemsToDisplay = appData.root;
+                backBtn.style.display = 'none';
+            } else {
+                itemsToDisplay = appData.folders[currentParentId];
+                backBtn.style.display = 'block';
+            }
+
+            itemsToDisplay.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = 'bubble';
+
+                if (item.type === 'empty') {
+                    el.classList.add('empty');
+                    el.innerHTML = '+';
+                    el.onclick = () => openEmptySlot(item);
+                } else {
+                    el.innerHTML = `<img src="${item.src}" alt="">`;
+                    if (item.type === 'folder') {
+                        el.onclick = () => enterFolder(item.id);
+                    } else {
+                        el.onclick = () => openImageFullscreen(item.src);
+                    }
+                }
+
+                el.oncontextmenu = (ev) => deleteItem(ev, item);
+                container.appendChild(el);
+
+                const x = 60 + (index * 120) % Math.max(window.innerWidth - 120, 100);
+                const y = 120 + Math.floor(index / 3) * 120;
+
+                activeBubblesPhysics.push({
                     element: el,
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 2.5,
-                    vy: (Math.random() - 0.5) * 2.5
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2
                 });
             });
         }
 
-        // Animation fluide continue des bulles en arrière-plan
         function updatePhysics() {
-            const maxX = window.innerWidth - 80;
-            const maxY = window.innerHeight - 80;
+            const maxX = window.innerWidth - 85;
+            const maxY = window.innerHeight - 85;
 
-            bubblesData.forEach(item => {
+            activeBubblesPhysics.forEach(item => {
                 item.x += item.vx;
                 item.y += item.vy;
 
-                // Rebond automatique sur les bords de l'écran
                 if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                 if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                 if (item.y <= 0) { item.y = 0; item.vy *= -1; }
                 if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
 
-                // Application du mouvement via l'accélération matérielle du GPU
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
-            requestAnimationFrame(updatePhysics);
+            animationFrameId = requestAnimationFrame(updatePhysics);
         }
 
-        initBubbles();
-        requestAnimationFrame(updatePhysics);
+        function enterFolder(folderId) {
+            currentParentId = folderId;
+            renderScene();
+        }
 
-        function openBubble(bubbleElement) {
-            if (bubbleElement.classList.contains('empty')) {
-                activeBubble = bubbleElement;
-                document.getElementById('file-input').click();
-            } else {
-                const img = bubbleElement.querySelector('img');
-                if (img) {
-                    fullscreenView.style.backgroundImage = `url(${img.src})`;
-                    fullscreenView.style.display = 'block';
-                    container.style.opacity = '0';
-                }
-            }
+        function goBackToRoot() {
+            currentParentId = null;
+            renderScene();
+        }
+
+        function openEmptySlot(item) {
+            activeBubbleForUpload = item;
+            document.getElementById('file-input').click();
         }
 
         function triggerAddGlobal() {
-            activeBubble = null;
+            activeBubbleForUpload = null;
             document.getElementById('file-input').click();
         }
 
@@ -179,53 +260,54 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const imageUrl = e.target.result;
-                    
-                    if (activeBubble) {
-                        activeBubble.classList.remove('empty');
-                        activeBubble.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        activeBubble = null;
-                    } else {
-                        const newDiv = document.createElement('div');
-                        newDiv.className = 'bubble';
-                        newDiv.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newDiv.onclick = function() { openBubble(newDiv); };
-                        newDiv.oncontextmenu = function(ev) { deleteBubble(ev, newDiv); };
-                        container.appendChild(newDiv);
 
-                        bubblesData.push({
-                            element: newDiv,
-                            x: window.innerWidth / 2,
-                            y: window.innerHeight / 2,
-                            vx: (Math.random() - 0.5) * 2.5,
-                            vy: (Math.random() - 0.5) * 2.5
-                        });
+                    if (activeBubbleForUpload) {
+                        activeBubbleForUpload.type = 'image';
+                        activeBubbleForUpload.src = imageUrl;
+                        activeBubbleForUpload = null;
+                    } else {
+                        if (currentParentId === null) {
+                            appData.root.push({ type: 'image', src: imageUrl });
+                        } else {
+                            appData.folders[currentParentId].push({ type: 'image', src: imageUrl });
+                        }
                     }
+                    renderScene();
                 }
                 reader.readAsDataURL(file);
             }
         }
 
-        function deleteBubble(event, bubbleElement) {
+        function openImageFullscreen(src) {
+            fullscreenView.style.backgroundImage = `url(${src})`;
+            fullscreenView.style.display = 'block';
+            container.style.opacity = '0';
+            backBtn.style.display = 'none';
+        }
+
+        function deleteItem(event, item) {
             event.preventDefault();
-            if (confirm("Supprimer cette bulle ?")) {
-                const index = bubblesData.findIndex(item => item.element === bubbleElement);
-                if (index !== -1) bubblesData.splice(index, 1);
-                bubbleElement.remove();
+            if (confirm("Supprimer cet élément ?")) {
+                if (currentParentId === null) {
+                    const idx = appData.root.indexOf(item);
+                    if (idx !== -1) appData.root.splice(idx, 1);
+                } else {
+                    const list = appData.folders[currentParentId];
+                    const idx = list.indexOf(item);
+                    if (idx !== -1) list.splice(idx, 1);
+                }
+                renderScene();
             }
         }
 
-        // --- Gestion propre pour quitter l'image en plein écran ---
         let touchStartY = 0;
-
         fullscreenView.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
         }, { passive: true });
 
         fullscreenView.addEventListener('touchend', (e) => {
             let touchEndY = e.changedTouches[0].clientY;
-            if (touchStartY - touchEndY > 40) {
-                resetView();
-            }
+            if (touchStartY - touchEndY > 40) resetView();
         }, { passive: true });
 
         fullscreenView.onclick = resetView;
@@ -233,7 +315,12 @@
         function resetView() {
             fullscreenView.style.display = 'none';
             container.style.opacity = '1';
+            if (currentParentId !== null) backBtn.style.display = 'block';
         }
+
+        // Lancement initial
+        renderScene();
+        requestAnimationFrame(updatePhysics);
     </script>
 </body>
 </html>
