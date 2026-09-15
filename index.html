@@ -137,33 +137,22 @@
         const fullscreenView = document.getElementById('fullscreen-view');
         const backBtn = document.getElementById('back-btn');
         
-        let currentParentId = null; // null = Racine, sinon ID du dossier parent
+        let currentParentId = null;
         let activeBubbleForUpload = null;
-        let animationFrameId = null;
 
-        // Structure de données hiérarchique avec tes 4 images principales
+        // Correspondance exacte avec les noms de fichiers de ton dépôt GitHub
         const appData = {
             root: [
-                { id: 'cat-samurai', type: 'folder', src: 'https://i.ibb.co/68v1w9W/Screenshot-20260915-151335.png' }, // Remplacer par l'URL/chemin de ton image 1
-                { id: 'ryoshi', type: 'folder', src: 'https://i.ibb.co/3s6K91R/Screenshot-20260915-151320.png' },      // Image 2
-                { id: 'oscar-token', type: 'folder', src: 'https://i.ibb.co/5G2720x/Screenshot-20260915-151218.png' },  // Image 3
-                { id: 'collar-dog', type: 'folder', src: 'https://i.ibb.co/9v35V2h/Screenshot-20260915-151233.png' }   // Image 4
+                { id: 'folder-shibus', type: 'folder', src: 'Shibus .png' },
+                { id: 'folder-ryoshi', type: 'folder', src: 'Ryoshi .png' },
+                { id: 'folder-oscar', type: 'folder', src: 'Oscar.png' },
+                { id: 'folder-collar', type: 'folder', src: 'Collar.png' }
             ],
             folders: {
-                'cat-samurai': [
-                    { type: 'empty' },
-                    { type: 'empty' }
-                ],
-                'ryoshi': [
-                    { type: 'empty' }
-                ],
-                'oscar-token': [
-                    { type: 'empty' },
-                    { type: 'empty' }
-                ],
-                'collar-dog': [
-                    { type: 'empty' }
-                ]
+                'folder-shibus': [{ type: 'empty' }, { type: 'empty' }],
+                'folder-ryoshi': [{ type: 'empty' }],
+                'folder-oscar': [{ type: 'empty' }, { type: 'empty' }],
+                'folder-collar': [{ type: 'empty' }]
             }
         };
 
@@ -173,14 +162,8 @@
             container.innerHTML = '';
             activeBubblesPhysics = [];
 
-            let itemsToDisplay = [];
-            if (currentParentId === null) {
-                itemsToDisplay = appData.root;
-                backBtn.style.display = 'none';
-            } else {
-                itemsToDisplay = appData.folders[currentParentId];
-                backBtn.style.display = 'block';
-            }
+            let itemsToDisplay = currentParentId === null ? appData.root : appData.folders[currentParentId];
+            backBtn.style.display = currentParentId === null ? 'none' : 'block';
 
             itemsToDisplay.forEach((item, index) => {
                 const el = document.createElement('div');
@@ -191,7 +174,7 @@
                     el.innerHTML = '+';
                     el.onclick = () => openEmptySlot(item);
                 } else {
-                    el.innerHTML = `<img src="${item.src}" alt="">`;
+                    el.innerHTML = `<img src="${item.src}" alt="" onerror="this.onerror=null; this.parentNode.innerHTML='⚠️';">`;
                     if (item.type === 'folder') {
                         el.onclick = () => enterFolder(item.id);
                     } else {
@@ -231,7 +214,7 @@
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
 
-            animationFrameId = requestAnimationFrame(updatePhysics);
+            requestAnimationFrame(updatePhysics);
         }
 
         function enterFolder(folderId) {
@@ -260,7 +243,6 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const imageUrl = e.target.result;
-
                     if (activeBubbleForUpload) {
                         activeBubbleForUpload.type = 'image';
                         activeBubbleForUpload.src = imageUrl;
@@ -301,15 +283,8 @@
         }
 
         let touchStartY = 0;
-        fullscreenView.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-
-        fullscreenView.addEventListener('touchend', (e) => {
-            let touchEndY = e.changedTouches[0].clientY;
-            if (touchStartY - touchEndY > 40) resetView();
-        }, { passive: true });
-
+        fullscreenView.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+        fullscreenView.addEventListener('touchend', (e) => { if (touchStartY - e.changedTouches[0].clientY > 40) resetView(); }, { passive: true });
         fullscreenView.onclick = resetView;
 
         function resetView() {
@@ -318,7 +293,6 @@
             if (currentParentId !== null) backBtn.style.display = 'block';
         }
 
-        // Lancement initial
         renderScene();
         requestAnimationFrame(updatePhysics);
     </script>
