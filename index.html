@@ -11,7 +11,10 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: radial-gradient(circle at center, #121824 0%, #07090e 100%);
+            /* Utilisation de ta nouvelle image en fond avec un voile sombre pour garder la lisibilité */
+            background: linear-gradient(rgba(7, 9, 14, 0.75), rgba(7, 9, 14, 0.75)), url('background.jpg');
+            background-size: cover;
+            background-position: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             user-select: none;
             -webkit-user-select: none;
@@ -29,7 +32,7 @@
 
         .bubble {
             position: absolute;
-            width: 85px; /* Tu peux modifier la taille ici (ex: 100px) */
+            width: 85px; /* Tu peux modifier la taille ici si besoin */
             height: 85px;
             border-radius: 50%;
             overflow: hidden;
@@ -82,32 +85,6 @@
             display: none;
         }
 
-        #add-btn {
-            position: fixed;
-            bottom: 35px;
-            right: 35px;
-            background: linear-gradient(135deg, #00ffcc 0%, #00b388 100%);
-            color: #07090e;
-            border: none;
-            border-radius: 50px;
-            padding: 14px 28px;
-            font-weight: 700;
-            font-size: 15px;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(0, 255, 204, 0.4);
-            z-index: 10;
-            transition: transform 0.2s ease;
-        }
-
-        #add-btn:active {
-            transform: scale(0.95);
-        }
-
-        #file-input {
-            display: none;
-        }
-
         #fullscreen-view {
             position: fixed;
             top: 0;
@@ -127,8 +104,6 @@
 
     <button id="back-btn" onclick="goBackToRoot()">← Retour</button>
     <div id="canvas-container"></div>
-    <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter</button>
-    <input type="file" id="file-input" accept="image/*" onchange="addNewImage(event)">
 
     <div id="fullscreen-view"></div>
 
@@ -138,8 +113,7 @@
         const backBtn = document.getElementById('back-btn');
         
         let currentParentId = null;
-        let activeBubbleForUpload = null;
-        const bubbleSize = 85; // Doit correspondre à la largeur CSS de la bulle
+        const bubbleSize = 85;
 
         const appData = {
             root: [
@@ -172,7 +146,8 @@
                 if (item.type === 'empty') {
                     el.classList.add('empty');
                     el.innerHTML = '+';
-                    el.onclick = () => openEmptySlot(item);
+                    // Les emplacements vides affichent une alerte ou peuvent être personnalisés si besoin
+                    el.onclick = () => alert("Dossier vide pour le moment.");
                 } else {
                     el.innerHTML = `<img src="${item.src}" alt="" onerror="this.onerror=null; this.parentNode.innerHTML='⚠️';">`;
                     if (item.type === 'folder') {
@@ -182,7 +157,6 @@
                     }
                 }
 
-                el.oncontextmenu = (ev) => deleteItem(ev, item);
                 container.appendChild(el);
 
                 const x = 60 + (index * 120) % Math.max(window.innerWidth - 120, 100);
@@ -201,9 +175,8 @@
         function updatePhysics() {
             const maxX = window.innerWidth - bubbleSize;
             const maxY = window.innerHeight - bubbleSize;
-            const radius = bubbleSize; // Distance de collision basée sur la taille
+            const radius = bubbleSize;
 
-            // 1. Gestion des déplacements et rebonds sur les murs
             activeBubblesPhysics.forEach(item => {
                 item.x += item.vx;
                 item.y += item.vy;
@@ -214,7 +187,6 @@
                 if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
             });
 
-            // 2. Gestion des collisions entre les bulles (entrechoquements)
             for (let i = 0; i < activeBubblesPhysics.length; i++) {
                 for (let j = i + 1; j < activeBubblesPhysics.length; j++) {
                     let b1 = activeBubblesPhysics[i];
@@ -225,18 +197,15 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < radius) {
-                        // Collision détectée ! On inverse les vitesses pour simuler le choc
                         let overlap = radius - distance;
                         let nx = dx / distance;
                         let ny = dy / distance;
 
-                        // Séparation des bulles pour éviter qu'elles ne se bloquent
                         b1.x -= nx * overlap / 2;
                         b1.y -= ny * overlap / 2;
                         b2.x += nx * overlap / 2;
                         b2.y += ny * overlap / 2;
 
-                        // Échange des vecteurs de vitesse (rebond élastique simple)
                         let tempVx = b1.vx;
                         let tempVy = b1.vy;
                         b1.vx = b2.vx;
@@ -247,7 +216,6 @@
                 }
             }
 
-            // Application des positions finales sur le DOM
             activeBubblesPhysics.forEach(item => {
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
@@ -265,59 +233,11 @@
             renderScene();
         }
 
-        function openEmptySlot(item) {
-            activeBubbleForUpload = item;
-            document.getElementById('file-input').click();
-        }
-
-        function triggerAddGlobal() {
-            activeBubbleForUpload = null;
-            document.getElementById('file-input').click();
-        }
-
-        function addNewImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imageUrl = e.target.result;
-                    if (activeBubbleForUpload) {
-                        activeBubbleForUpload.type = 'image';
-                        activeBubbleForUpload.src = imageUrl;
-                        activeBubbleForUpload = null;
-                    } else {
-                        if (currentParentId === null) {
-                            appData.root.push({ type: 'image', src: imageUrl });
-                        } else {
-                            appData.folders[currentParentId].push({ type: 'image', src: imageUrl });
-                        }
-                    }
-                    renderScene();
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
         function openImageFullscreen(src) {
             fullscreenView.style.backgroundImage = `url(${src})`;
             fullscreenView.style.display = 'block';
             container.style.opacity = '0';
             backBtn.style.display = 'none';
-        }
-
-        function deleteItem(event, item) {
-            event.preventDefault();
-            if (confirm("Supprimer cet élément ?")) {
-                if (currentParentId === null) {
-                    const idx = appData.root.indexOf(item);
-                    if (idx !== -1) appData.root.splice(idx, 1);
-                } else {
-                    const list = appData.folders[currentParentId];
-                    const idx = list.indexOf(item);
-                    if (idx !== -1) list.splice(idx, 1);
-                }
-                renderScene();
-            }
         }
 
         let touchStartY = 0;
