@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>OSCAR Bubblemap Wallpaper</title>
     <style>
         body, html {
@@ -14,6 +14,7 @@
             background-color: #0b0e14;
             font-family: sans-serif;
             user-select: none;
+            touch-action: none;
         }
 
         #canvas-container {
@@ -35,7 +36,6 @@
             border: 3px solid #00ffcc;
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
             cursor: pointer;
-            transition: box-shadow 0.2s ease;
             background: #1a2233;
             display: flex;
             align-items: center;
@@ -43,14 +43,11 @@
             will-change: transform;
         }
 
-        .bubble:hover {
-            box-shadow: 0 0 25px rgba(0, 255, 204, 0.8);
-        }
-
         .bubble img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            pointer-events: none;
         }
 
         .bubble.empty {
@@ -59,11 +56,6 @@
             color: #888;
             font-size: 24px;
             font-weight: bold;
-        }
-
-        .bubble.empty:hover {
-            border-color: #00ffcc;
-            color: #00ffcc;
         }
 
         #add-btn {
@@ -92,10 +84,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-size: contain; /* Affiche l'image en entier sans zoom excessif */
+            background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
-            background-color: #0b0e14; /* Fond propre si l'image a des proportions différentes */
+            background-color: #0b0e14;
             display: none;
             z-index: 5;
         }
@@ -104,9 +96,9 @@
 <body>
 
     <div id="canvas-container">
-        <div class="bubble" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
-        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
-        <div class="bubble empty" onclick="handleBubbleClick(this)" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble" oncontextmenu="deleteBubble(event, this)"><img src="https://picsum.photos/seed/1/200/200" alt=""></div>
+        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
+        <div class="bubble empty" oncontextmenu="deleteBubble(event, this)">+</div>
     </div>
 
     <button id="add-btn" onclick="triggerAddGlobal()">+ Ajouter une bulle</button>
@@ -121,19 +113,71 @@
         let activeBubble = null;
         const bubblesData = [];
 
+        // Gestion du déplacement tactile et du clic
+        let draggedItem = null;
+        let offsetX = 0, offsetY = 0;
+        let isDragging = false;
+        let startTouchX = 0, startTouchY = 0;
+
         function initBubbles() {
             const elements = document.querySelectorAll('.bubble');
             elements.forEach((el, index) => {
                 const x = 50 + (index * 120) % (window.innerWidth - 100);
                 const y = 100 + Math.floor(index / 3) * 120;
                 
-                bubblesData.push({
+                const item = {
                     element: el,
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 1.2,
-                    vy: (Math.random() - 0.5) * 1.2
-                });
+                    vy: (Math.random() - 0.5) * 1.2,
+                    isBeingDragged: false
+                };
+
+                setupTouchEvents(item);
+                bubblesData.push(item);
+            });
+        }
+
+        function setupTouchEvents(item) {
+            let el = item.element;
+
+            el.addEventListener('pointerdown', (e) => {
+                isDragging = false;
+                draggedItem = item;
+                startTouchX = e.clientX;
+                startTouchY = e.clientY;
+                offsetX = e.clientX - item.x;
+                offsetY = e.clientY - item.y;
+                item.isBeingDragged = true;
+                el.setPointerCapture(e.pointerId);
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (draggedItem === item) {
+                    let dx = e.clientX - startTouchX;
+                    let dy = e.clientY - startTouchY;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        isDragging = true; // C'est un mouvement (glissé)
+                    }
+                    item.x = e.clientX - offsetX;
+                    item.y = e.clientY - offsetY;
+                }
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (draggedItem === item) {
+                    item.isBeingDragged = false;
+                    // Donne une petite impulsion au lancer selon le mouvement
+                    item.vx = (e.clientX - startTouchX) * 0.1;
+                    item.vy = (e.clientY - startTouchY) * 0.1;
+                    
+                    // Si on n'a pas bougé, c'est considéré comme un clic simple !
+                    if (!isDragging) {
+                        handleBubbleClick(item);
+                    }
+                    draggedItem = null;
+                }
             });
         }
 
@@ -142,13 +186,24 @@
             const maxY = window.innerHeight - 80;
 
             bubblesData.forEach(item => {
-                item.x += item.vx;
-                item.y += item.vy;
+                if (!item.isBeingDragged) {
+                    item.x += item.vx;
+                    item.y += item.vy;
 
-                if (item.x <= 0) { item.x = 0; item.vx *= -1; }
-                if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
-                if (item.y <= 0) { item.y = 0; item.vy *= -1; }
-                if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                    // Friction naturelle pour ralentir doucement le lancer
+                    item.vx *= 0.99;
+                    item.vy *= 0.99;
+
+                    // Relance un tout petit peu si la bulle s'arrête complètement
+                    if (Math.abs(item.vx) < 0.2) item.vx = (Math.random() - 0.5) * 1.2;
+                    if (Math.abs(item.vy) < 0.2) item.vy = (Math.random() - 0.5) * 1.2;
+
+                    // Rebond sur les bords
+                    if (item.x <= 0) { item.x = 0; item.vx *= -1; }
+                    if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
+                    if (item.y <= 0) { item.y = 0; item.vy *= -1; }
+                    if (item.y >= maxY) { item.y = maxY; item.vy *= -1; }
+                }
 
                 item.element.style.transform = `translate3d(${item.x}px, ${item.y}px, 0)`;
             });
@@ -159,12 +214,12 @@
         initBubbles();
         requestAnimationFrame(updatePhysics);
 
-        function handleBubbleClick(bubbleElement) {
-            if (bubbleElement.classList.contains('empty')) {
-                activeBubble = bubbleElement;
+        function handleBubbleClick(item) {
+            if (item.element.classList.contains('empty')) {
+                activeBubble = item.element;
                 document.getElementById('file-input').click();
             } else {
-                const img = bubbleElement.querySelector('img');
+                const img = item.element.querySelector('img');
                 if (img) {
                     fullscreenView.style.backgroundImage = `url(${img.src})`;
                     fullscreenView.style.display = 'block';
@@ -193,17 +248,19 @@
                         const newDiv = document.createElement('div');
                         newDiv.className = 'bubble';
                         newDiv.innerHTML = `<img src="${imageUrl}" alt="">`;
-                        newDiv.onclick = () => handleBubbleClick(newDiv);
                         newDiv.oncontextmenu = (ev) => deleteBubble(ev, newDiv);
                         container.appendChild(newDiv);
 
-                        bubblesData.push({
+                        const newItem = {
                             element: newDiv,
                             x: window.innerWidth / 2,
                             y: window.innerHeight / 2,
                             vx: (Math.random() - 0.5) * 1.5,
-                            vy: (Math.random() - 0.5) * 1.5
-                        });
+                            vy: (Math.random() - 0.5) * 1.5,
+                            isBeingDragged: false
+                        };
+                        setupTouchEvents(newItem);
+                        bubblesData.push(newItem);
                     }
                 }
                 reader.readAsDataURL(file);
