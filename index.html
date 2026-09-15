@@ -154,7 +154,7 @@
                 let dx = touch.clientX - startX;
                 let dy = touch.clientY - startY;
 
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
                     hasMoved = true;
                 }
 
@@ -169,18 +169,18 @@
                 item.isBeingDragged = false;
 
                 if (!hasMoved) {
-                    // Tapotement simple : ouvre l'image ou l'ajout
+                    // Tapotement direct : ouvre l'image en plein écran instantanément
                     handleBubbleClick(item);
                 } else {
-                    // Lancer : donne une impulsion selon la vitesse de lâcher
+                    // Lancer de la bulle
                     item.vx = (Math.random() - 0.5) * 4;
                     item.vy = (Math.random() - 0.5) * 4;
                 }
             });
 
-            // Pour que ça fonctionne aussi avec la souris sur PC
-            el.addEventListener('click', () => {
-                if (!hasMoved) handleBubbleClick(item);
+            // Fallback pour les tests sur PC avec la souris
+            el.addEventListener('click', (e) => {
+                handleBubbleClick(item);
             });
         }
 
@@ -193,15 +193,13 @@
                     item.x += item.vx;
                     item.y += item.vy;
 
-                    // Ralentissement progressif (frottement)
+                    // Frottements et relance automatique pour garder le mouvement vivant
                     item.vx *= 0.98;
                     item.vy *= 0.98;
 
-                    // Relance automatique si la bulle s'arrête trop
                     if (Math.abs(item.vx) < 0.3) item.vx = (Math.random() - 0.5) * 1.5;
                     if (Math.abs(item.vy) < 0.3) item.vy = (Math.random() - 0.5) * 1.5;
 
-                    // Rebond sur les bords de l'écran
                     if (item.x <= 0) { item.x = 0; item.vx *= -1; }
                     if (item.x >= maxX) { item.x = maxX; item.vx *= -1; }
                     if (item.y <= 0) { item.y = 0; item.vy *= -1; }
